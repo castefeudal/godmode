@@ -193,6 +193,35 @@
             Sun: 'M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42'
         };
 
+        const THEME = {
+            panel: 'bg-[#121212]/75 backdrop-blur-3xl border border-[#262626]/60 rounded-[2rem] p-5 md:p-8 shadow-2xl shadow-black/80 transition-all duration-300 premium-elevation',
+            textMuted: 'text-slate-400',
+            accentBg: 'bg-gradient-to-r from-amber-400 to-yellow-600',
+            accentHover: 'hover:brightness-110 hover:shadow-[0_0_30px_rgba(251,191,36,0.35)]'
+        };
+
+        const MODES = {
+            MAX: { id: 'max', label: 'Максимум', desc: 'Полная загрузка ЦНС.', pmTime: 90, engTime: 30 },
+            NORM: { id: 'norm', label: 'Норма', desc: 'Стандартный рабочий ритм.', pmTime: 60, engTime: 25 },
+            MIN: { id: 'min', label: 'Минимум', desc: 'Удержание базовых опор.', pmTime: 15, engTime: 10 },
+            RECOVERY: { id: 'recovery', label: 'Восстановление', desc: 'Глубокий отдых.', pmTime: 0, engTime: 0 },
+            SATURDAY: { id: 'saturday', label: 'Суббота', desc: 'Творческий поток.', pmTime: 0, engTime: 0 },
+            SUNDAY: { id: 'sunday', label: 'Воскресенье', desc: 'Стратегическая сборка.', pmTime: 0, engTime: 0 }
+        };
+
+        const MANIFESTS = {
+            AM: {
+                title: "УТРЕННИЙ СВЕРХ-МАНИФЕСТ",
+                instruction: "Читай стоя, расправив плечи, глубоким и командным голосом. Твой разум — абсолютный закон.",
+                text: "«Господь, Архитектор Вселенной, и Ты, Великий Порядок Бытия.\n\nЯ, Павел Марков, пробуждаю свою истинную силу и заявляю права на свою реальность. Прямо сейчас я активирую ультимативный щит разума: любой ментальный шум, страх, сомнение или случайный негатив мгновенно аннигилируются, превращаясь в чистую созидательную энергию. Воля Павла Маркова — высший закон для моего подсознания.\n\nВселенная, синхронизируй мои вибрации с кодами безграничного богатства, триумфа и масштабного успеха. Я включаю свою личную гравитацию: я — мощный ментальный магнит. Прямо сейчас я притягиваю в свое поле сильных, верных, масштабных и духовно близких мне людей. Мою касту. Моих людей.\n\nГосподь, наполни мое тело несокрушимой энергией, а разум — идеальной структуру и дисциплиной. Мой фокус безупречен. Каждое мое действие сегодня материализует успех, власть и изобилие. Я создаю этот день по праву творца. Намерение исполнено.\n\nДа будет так. Сбылось. Done. Así sea. Hecho está. 14.03.1997. 如此 в реальном времени. 成了. [Rúcǐ zài. Chéng le.]»"
+            },
+            PM: {
+                title: "ВЕЧЕРНИЙ СВЕРХ-МАНИФЕСТ",
+                instruction: "Читай непосредственно в постели. Замедляй темп с каждой строчкой, полностью отпуская напряжение дня.",
+                text: "«Господь, Творец всего сущего, и Ты, Вселенная, разворачивающая миры в безупречном порядке.\n\nЯ, Павел Марков, подвожу итог этого дня. Прямо сейчас я полностью очищаю свое пространство от дневного шума и суеты. Любое внешнее влияние, чужие эмоции, страхи и сомнения обесточены, стерты и лишены силы. Мой разум чист, стабилен и неуязвим.\n\nЯ принимаю этот день во всей его полноте — как идеальную и необходимую структуру своего опыта. Моя дисциплина зафиксирована, мои действия неизбежно ведут к триумфу. Всё, что произошло сегодня, уже работает на меня и приумножает мою силу.\n\nПока мое тело погружается в глубокий, исцеляющий сон, мое подсознание программирует физический мир. Вселенная перестраивает реальность под мои утренние манифесты. Мои клетки обновляются, моя сила растет в тишине. Я засыпаю с абсолютным знанием своего величия.\n\nДа будет так. Сбылось. Done. Así sea. Hecho está. 14.03.1997. 优质 в реальном времени. 成了. [Rúcǐ zài. Chéng le.]»"
+            }
+        };
+
         const INITIAL_STATE = {
             currentTab: 'dashboard',
             currentMode: 'norm',
@@ -218,7 +247,7 @@
         function useAppState() {
             const [state, setState] = useState(() => {
                 try {
-                    const saved = localStorage.getItem('markov_os_v15_hyper_elite_final');
+                    const saved = localStorage.getItem('markov_os_v15_hyper_elite_final_v2');
                     if (saved) return { ...INITIAL_STATE, ...JSON.parse(saved) };
                 } catch (e) {}
                 return INITIAL_STATE;
@@ -232,7 +261,7 @@
             }, []);
 
             useEffect(() => {
-                localStorage.setItem('markov_os_v15_hyper_elite_final', JSON.stringify(state));
+                localStorage.setItem('markov_os_v15_hyper_elite_final_v2', JSON.stringify(state));
             }, [state]);
 
             useEffect(() => {
@@ -467,142 +496,6 @@
             );
         };
 
-        const ManifestReader = ({ type, onCodeClick }) => {
-            const m = MANIFESTS[type];
-            const [expanded, setExpanded] = useState(false);
-            return (
-                <div className="mt-4 p-4 rounded-xl bg-[#0a0a0a]/60 border border-[#222222]">
-                    <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpanded(!expanded)}>
-                        <div>
-                            <h4 className="text-xs font-black text-slate-200 tracking-wider uppercase">{m.title}</h4>
-                            <p className="text-[10px] text-slate-400 mt-0.5">{m.instruction.substring(0, 45)}...</p>
-                        </div>
-                        <span className="text-amber-400 text-xs font-mono">{expanded ? 'СВЕРНУТЬ' : 'РАЗВЕРНУТЬ'}</span>
-                    </div>
-                    {expanded && (
-                        <div className="mt-4 pt-4 border-t border-[#222222] animate-in fade-in">
-                            <p className="text-[11px] text-amber-500/80 italic leading-relaxed mb-3">{m.instruction}</p>
-                            <p className="text-xs text-slate-200 whitespace-pre-line leading-relaxed font-medium bg-[#111] p-3 rounded-lg border border-[#222]/40 select-all">
-                                {m.text.split("14.03.1997").map((part, i, arr) => (
-                                    <React.Fragment key={i}>
-                                        {part}
-                                        {i < arr.length - 1 && (
-                                            <span onClick={(e) => { e.stopPropagation(); onCodeClick(); }} className="text-amber-400 font-bold border-b border-dashed border-amber-400 cursor-pointer hover:text-amber-300">
-                                                14.03.1997
-                                            </span>
-                                        )}
-                                    </React.Fragment>
-                                ))}
-                            </p>
-                        </div>
-                    )}
-                </div>
-            );
-        };
-
-        const BreathingTimer = ({ type = 'morning', onCompleteAction, compact = false }) => {
-            const [isActive, setIsActive] = useState(false);
-            const [timeElapsed, setTimeElapsed] = useState(0);
-            const [phaseName, setPhaseName] = useState('Готовность');
-            const [phaseLeft, setPhaseLeft] = useState(0);
-            const [circleScale, setCircleScale] = useState(1);
-
-            const TOTAL_SECONDS = 120;
-
-            useEffect(() => {
-                let interval = null;
-                if (isActive && timeElapsed < TOTAL_SECONDS) {
-                    interval = setInterval(() => {
-                        setTimeElapsed(prev => {
-                            const next = prev + 1;
-                            AudioEngine.playTick();
-                            return next;
-                        });
-                    }, 1000);
-                } else if (timeElapsed >= TOTAL_SECONDS && isActive) {
-                    setIsActive(false);
-                    setPhaseName('Завершено');
-                    setCircleScale(1);
-                    AudioEngine.playSuccess();
-                    if(onCompleteAction) onCompleteAction();
-                }
-                return () => clearInterval(interval);
-            }, [isActive, timeElapsed, onCompleteAction]);
-
-            useEffect(() => {
-                if (!isActive) return;
-                const cycle = timeElapsed % (type === 'morning' ? 16 : 10);
-
-                if (type === 'morning' || type === 'quick') {
-                    if (cycle < 4) {
-                        if (cycle === 0) AudioEngine.playPhaseChange();
-                        setPhaseName('Вдох'); setPhaseLeft(4 - cycle); setCircleScale(1.4);
-                    } else if (cycle < 8) {
-                        if (cycle === 4) AudioEngine.playPhaseChange();
-                        setPhaseName('Задержка'); setPhaseLeft(8 - cycle); setCircleScale(1.4);
-                    } else if (cycle < 12) {
-                        if (cycle === 8) AudioEngine.playPhaseChange();
-                        setPhaseName('Выдох'); setPhaseLeft(12 - cycle); setCircleScale(1.0);
-                    } else {
-                        if (cycle === 12) AudioEngine.playPhaseChange();
-                        setPhaseName('Задержка'); setPhaseLeft(16 - cycle); setCircleScale(1.0);
-                    }
-                } else {
-                    if (cycle < 4) {
-                        if (cycle === 0) AudioEngine.playPhaseChange();
-                        setPhaseName('Вдох'); setPhaseLeft(4 - cycle); setCircleScale(1.3);
-                    } else {
-                        if (cycle === 4) AudioEngine.playPhaseChange();
-                        setPhaseName('Выдох'); setPhaseLeft(10 - cycle); setCircleScale(1.0);
-                    }
-                }
-            }, [timeElapsed, isActive, type]);
-
-            const rem = TOTAL_SECONDS - timeElapsed;
-            const mins = Math.floor(rem / 60);
-            const secs = (rem % 60).toString().padStart(2, '0');
-
-            if (compact) {
-                return (
-                    <div className="flex items-center justify-between p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 w-full animate-in fade-in">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center font-mono text-amber-400 font-black text-xs" style={{ transform: `scale(${circleScale})`, transition: 'all 1s' }}>
-                                {isActive ? phaseLeft : '!'}
-                            </div>
-                            <div>
-                                <h4 className="text-xs font-black text-white uppercase tracking-wider">{isActive ? `Перезагрузка: ${phaseName}` : 'Быстрая перезагрузка ЦНС'}</h4>
-                                <p className="text-[10px] font-mono text-amber-400/80">Осталось сессии: {mins}:{secs}</p>
-                            </div>
-                        </div>
-                        <button onClick={() => setIsActive(!isActive)} className="px-4 py-2 rounded-xl bg-amber-400 text-black font-black text-[10px] uppercase tracking-wider">
-                            {isActive ? 'Стоп' : 'Старт'}
-                        </button>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="bg-[#0f0f0f]/60 border border-[#262626]/60 p-6 rounded-2xl flex flex-col items-center justify-center relative min-h-[300px] w-full">
-                    <div className="absolute top-4 left-4 text-[10px] font-black text-slate-300 uppercase tracking-widest bg-[#1a1a1a] px-2.5 py-1.5 rounded border border-[#333]/60">
-                        {type === 'morning' ? 'Box Breathing (4-4-4-4)' : 'Relax Breathing (4-6)'}
-                    </div>
-                    <div className="absolute top-4 right-4 text-xs font-mono font-black text-amber-400 bg-amber-500/10 px-2.5 py-1.5 rounded">
-                        {mins}:{secs}
-                    </div>
-                    <div className="relative w-32 h-32 flex items-center justify-center my-4">
-                        <div className="absolute rounded-full bg-amber-500/5 blur-2xl transition-all duration-1000 w-full h-full" style={{ transform: `scale(${circleScale})` }}></div>
-                        <div className="relative z-10 rounded-full border-2 border-amber-500/30 bg-gradient-to-br from-[#121212] to-[#050505] flex flex-col items-center justify-center transition-all duration-1000 shadow-xl" style={{ width: '90px', height: '90px', transform: `scale(${circleScale})` }}>
-                            {isActive ? <div className="text-2xl font-black font-mono text-amber-400">{phaseLeft}</div> : <IconBase iconName="Wind" className="text-slate-400" size={24} />}
-                        </div>
-                    </div>
-                    <div className="text-lg font-black text-white h-6 uppercase tracking-tight">{phaseName}</div>
-                    <Button variant={isActive ? 'secondary' : 'primary'} onClick={() => { triggerHaptic(15); setIsActive(!isActive); }} className="w-full max-w-[180px] mt-4">
-                        {isActive ? 'Пауза' : (timeElapsed > 0 ? 'Продолжить' : 'Запустить')}
-                    </Button>
-                </div>
-            );
-        };
-
         // ЭКРАН 1: Главный Дашборд
         const DashboardView = ({ state, update, toggleTask, setGlobalFocusId, globalFocusId, onCodeClick }) => {
             const todayDate = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -817,7 +710,7 @@
                     { time: '23:30', title: 'Мягкий вечер', desc: 'Вечерний Манифест. Глубокий исцеляющий сон Рыб.', icon: 'Moon' }
                 ];
                 if (mode === 'sunday') return [
-                    { time: '11:00', title: 'Мягкий вход', desc: 'Вода, вентиляция, отсутствие цифрового мусора.', icon: 'Compass' },
+                    { time: '11:00', title: 'Мягкий вход', desc: 'Вода, ventilation, отсутствие цифрового мусора.', icon: 'Compass' },
                     { time: '13:00', title: 'Магнитная доска', desc: 'Сборка и развертывание векторов на новую неделю.', icon: 'Layout' },
                     { time: '19:00', title: 'Декомпозиция смыслов', desc: 'Создание контент-маркеров и менторских тезисов.', icon: 'Edit3' }
                 ];
