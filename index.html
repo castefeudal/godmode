@@ -5,208 +5,173 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Markov OS - System Elite</title>
     
-    <!-- Tailwind CSS (Оптимизированный CDN для GitHub Pages) -->
+    <!-- Tailwind CSS (Высокопроизводительный CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- React & ReactDOM -->
+    <!-- React & ReactDOM (Стабильный Production) -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- Babel для компиляции JSX в браузере -->
+    <!-- Babel для компиляции JSX в рантайме -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
         body { 
-            background-color: #0a0a0a; 
+            background-color: #050505; 
             color: #e2e8f0; 
             font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
-            transition: background-color 0.8s ease;
+            transition: background-image 1s ease-in-out;
         }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         input[type="number"] { -moz-appearance: textfield; }
-        ::selection { background: rgba(251,191,36,0.3); color: white; }
+        ::selection { background: rgba(251,191,36,0.35); color: #ffffff; }
         .touch-manipulation { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         
         @keyframes shimmer { 100% { transform: translateX(100%); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes zoomIn95 { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes pulseGlow { 0%, 100% { opacity: 0.3; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.02); } }
+        @keyframes radarBeam { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        .animate-in { animation-fill-mode: forwards; }
-        .fade-in { animation-name: fadeIn; }
-        .zoom-in-95 { animation-name: zoomIn95; }
-        .duration-500 { animation-duration: 500ms; }
+        .animate-in { animation: fadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
+        .premium-glass {
+            background: rgba(18, 18, 18, 0.6);
+            backdrop-filter: blur(30px) saturate(130%);
+            -webkit-backdrop-filter: blur(30px) saturate(130%);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+        }
+        
+        /* Стилизация стоической карты жизни */
+        .mori-dot {
+            width: 5px;
+            height: 5px;
+             Reconstruction-fit: contain;
+            border-radius: 1px;
+            transition: all 0.3s ease;
+        }
+        @media (max-width: 640px) {
+            .mori-dot { width: 3px; height: 3px; }
+        }
+
+        /* Безопасные зоны для мобильных вырезов */
         @supports (padding-bottom: env(safe-area-inset-bottom)) {
-            nav.fixed.bottom-0 { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+            .safe-bottom { padding-bottom: calc(0.7rem + env(safe-area-inset-bottom)); }
         }
     </style>
 </head>
-<body>
+<body class="touch-manipulation relative min-h-screen">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
-        // База Стоических Цитат и личных манифестов Павла Маркова (Динамический блок)
+        const BIRTH_DATE = "1997-03-14";
+        const TARGET_YEARS = 80;
+
         const STOIC_QUOTES = [
             { text: "У тебя есть власть над твоим разумом, а не над внешними событиями. Осознай это, и ты обретешь силу.", author: "Марк Аврелий" },
-            { text: "Судьба ведет того, кто хочет, и тащит того, кто не хочет. Amor Fati.", author: "Клеанф / Клеанф" },
+            { text: "Судьба ведет того, кто хочет, и тащит того, кто не хочет. Amor Fati.", author: "Клеанф" },
             { text: "Сколько бы грехов ни совершали другие, твой долг — оставаться прямым, а не исправленным.", author: "Марк Аврелий" },
-            { text: "Твой успех — это сухая математика и выполнение алгоритма, пока остальные спят.", author: "Павел Марков" },
+            { text: "Твой успех — это сухая математика и выполнение алгоритма, пока остальные ищут оправдания.", author: "Павел Марков" },
             { text: "Лучшая месть врагу — не быть похожим на него.", author: "Марк Аврелий" },
-            { text: "Помни, что ты умрешь.Memento Mori. Не теряй ни часа на пустой ментальный шум.", author: "Сенека" },
+            { text: "Помни, что ты умрешь. Memento Mori. Не теряй ни секунды на ментальный шум.", author: "Сенека" },
             { text: "Если ты не контролируешь свое утро, ты не контролируешь свою жизнь. Включи структуру.", author: "Код Суверена" }
         ];
 
-        // Автономный звуковой движок на Web Audio API
+        // Звуковой движок реального времени
         const AudioEngine = {
             ctx: null,
-            init() {
-                if (!this.ctx) {
-                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-            },
+            init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
             playClick() {
-                this.init();
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(750, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(350, this.ctx.currentTime + 0.03);
-                gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.03);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.03);
+                this.init(); const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = 'sine'; osc.frequency.setValueAtTime(700, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(320, this.ctx.currentTime + 0.02);
+                gain.gain.setValueAtTime(0.03, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.02);
+                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.02);
             },
             playTick() {
-                this.init();
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(550, this.ctx.currentTime);
-                gain.gain.setValueAtTime(0.015, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.015);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.015);
+                this.init(); const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.012, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.01);
+                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.01);
             },
             playPhaseChange() {
-                this.init();
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(950, this.ctx.currentTime);
-                gain.gain.setValueAtTime(0.025, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.08);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.08);
+                this.init(); const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = 'sine'; osc.frequency.setValueAtTime(900, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.02, this.ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.07);
+                osc.connect(gain); gain.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime + 0.07);
             },
             playSuccess() {
-                this.init();
-                const now = this.ctx.currentTime;
-                const notes = [523.25, 659.25, 783.99, 1046.50];
-                notes.forEach((freq, index) => {
-                    const osc = this.ctx.createOscillator();
-                    const gain = this.ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(freq, now + index * 0.07);
-                    gain.gain.setValueAtTime(0.03, now + index * 0.07);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.07 + 0.25);
-                    osc.connect(gain);
-                    gain.connect(this.ctx.destination);
-                    osc.start(now + index * 0.07);
-                    osc.stop(now + index * 0.07 + 0.25);
+                this.init(); const now = this.ctx.currentTime; const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain(); osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.06); gain.gain.setValueAtTime(0.02, now + idx * 0.06);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.06 + 0.22);
+                    osc.connect(gain); gain.connect(this.ctx.destination); osc.start(now + idx * 0.06); osc.stop(now + idx * 0.06 + 0.22);
                 });
             }
         };
 
-        // Тактильный отклик смартфона
-        const triggerHaptic = (pattern = 12) => {
-            if (navigator.vibrate) {
-                navigator.vibrate(pattern);
-            }
-        };
+        const triggerHaptic = (pat = 10) => { if (navigator.vibrate) navigator.vibrate(pat); };
 
-        // База иконок SVG
+        // Иконки SVG
         const SVG_ICONS = {
-            Home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10',
+            Home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9',
             Clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
-            BookOpen: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm22 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+            Brain: 'M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1 0-3.12 3 3 0 0 1 0-4.88 2.5 2.5 0 0 1 0-3.12A2.5 2.5 0 0 1 9.5 2zm5 0A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 0-3.12 3 3 0 0 0 0-4.88 2.5 2.5 0 0 0 0-3.12A2.5 2.5 0 0 0 14.5 2z',
             Dumbbell: 'M6.5 6.5h11M6.5 17.5h11M12 3v18M3 6.5h3.5m11 0H21M3 17.5h3.5m11 0H21',
             Smartphone: 'M5 2h14a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM12 18h.01',
-            Moon: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
-            Target: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0 0v-4m0-12V2M2 12h4m12 0h4',
-            Zap: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
-            ZapOff: 'M12.41 12.41L3 21m10-19L9.66 6.34m2.46 2.46L11 10H3l2.81-3.37M19 14l-3 3.5M21 10h-7l1-8',
-            CheckCircle2: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm-2-11l2 2 4-4',
-            Circle: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z',
-            ChevronRight: 'M9 5l7 7-7 7',
-            ChevronDown: 'M19 9l-7 7-7-7',
-            Brain: 'M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1 0-3.12 3 3 0 0 1 0-4.88 2.5 2.5 0 0 1 0-3.12A2.5 2.5 0 0 1 9.5 2zm5 0A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 0-3.12 3 3 0 0 0 0-4.88 2.5 2.5 0 0 0 0-3.12A2.5 2.5 0 0 0 14.5 2z',
-            Battery: 'M23 13v-2M1 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H1a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z',
-            ShieldAlert: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zm0-14v4m0 4h.01',
-            PenTool: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 11l3-3m-3 3l-3-3',
-            Download: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5l5 5 5-5m-5 5V3',
-            Plus: 'M12 5v14M5 12h14',
-            Minus: 'M5 12h14',
-            Music: 'M9 18V5l12-2v13M9 10l12-2M7 21a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
-            Copy: 'M9 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1m-5 10h11a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2H10a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2z',
+            Wind: 'M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2',
+            Trophy: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6zm12 0h1.5a2.5 2.5 0 0 0 0-5H18M4.22 22h15.56M12 15V22m-4-7a4 4 0 0 1 8 0z',
+            Settings: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z',
+            Calendar: 'M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm-3-2v4M8 2v4M3 10h18',
+            Activity: 'M22 12h-4l-3 9L9 3l-3 9H2',
+            Shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+            Anchor: 'M12 5V22M5 12H2M22 12h-3M12 22a7 7 0 0 1-7-7M12 22a7 7 0 0 0 7-7M12 5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
             Check: 'M20 6L9 17l-5-5',
             X: 'M18 6L6 18M6 6l12 12',
+            Plus: 'M12 5v14M5 12h14',
+            Minus: 'M5 12h14',
             Flame: 'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z',
-            Activity: 'M22 12h-4l-3 9L9 3l-3 9H2',
-            TrendingUp: 'M23 6l-9.5 9.5-5-5L1 18m22-12h-6m6 0v6',
-            Layout: 'M3 3h18v18H3zm0 6h18M9 9v12',
-            Calendar: 'M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm-3-2v4M8 2v4M3 10h18',
-            Settings: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
-            Trophy: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6zm12 0h1.5a2.5 2.5 0 0 0 0-5H18M4.22 22h15.56M12 15V22m-4-7a4 4 0 0 1 8 0z',
-            Wind: 'M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2',
-            BookMarked: 'M4 6h16M4 10h16M4 14h12M4 18h12M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2z',
+            Timer: 'M10 2h4M12 14l3-3m-3 15a9 9 0 1 1 0-18 9 9 0 0 1 0 18z',
             Play: 'M5 3l14 9-14 9V3z',
             Pause: 'M6 4h4v16H6zm8 0h4v16h-4z',
             RotateCcw: 'M3.51 9a9 9 0 0 1 14.85-3.36L21 8M3 3v6h6',
-            Timer: 'M10 2h4M12 14l3-3m-3 15a9 9 0 1 1 0-18 9 9 0 0 1 0 18z',
-            Sparkles: 'M12 3v4M12 17v4M3 12h4M17 12h4m-14.8-4.8l2.8 2.8m8 8l2.8 2.8m0-13.6l-2.8 2.8m-8 8l-2.8 2.8',
-            HeartPulse: 'M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0 5.86 5.86 0 0 0 0 8.14L12 21l8.42-8.28a5.86 5.86 0 0 0 0-8.14zM12 5v14',
-            Compass: 'M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12zM12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z',
+            Crown: 'M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z',
+            Download: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5l5 5 5-5m-5 5V3',
             Layers: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
             List: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
-            GitCommit: 'M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zm-12-6h6m12 0h6',
-            Anchor: 'M12 5V22M5 12H2M22 12h-3M12 22a7 7 0 0 1-7-7M12 22a7 7 0 0 0 7-7M12 5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
-            Shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
-            Utensils: 'M18 8h1a4 4 0 0 1 0 8h-1M2 11h14c0-4.5-3.5-5-3.5-5S9 6.5 9 11M6 11v10M10 11v10',
+            BookOpen: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm22 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
             Globe: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-20a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10zM2 12h20',
-            BrainCircuit: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM9 9h6v6H9z',
+            Utensils: 'M18 8h1a4 4 0 0 1 0 8h-1M2 11h14c0-4.5-3.5-5-3.5-5S9 6.5 9 11M6 11v10M10 11v10',
+            PenTool: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 11l3-3m-3 3l-3-3',
+            TrendingUp: 'M23 6l-9.5 9.5-5-5L1 18m22-12h-6m6 0v6',
+            CheckCircle2: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm-2-11l2 2 4-4',
+            Moon: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
+            Battery: 'M23 13v-2M1 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H1a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z',
+            Coffee: 'M18 8h1a4 4 0 0 1 0 8h-1M2 11h14c0-4.5-3.5-5-3.5-5S9 6.5 9 11M6 11v10M10 11v10',
+            Layout: 'M3 3h18v18H3zm0 6h18M9 9v12',
+            HeartPulse: 'M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0 5.86 5.86 0 0 0 0 8.14L12 21l8.42-8.28a5.86 5.86 0 0 0 0-8.14zM12 5v14',
+            Compass: 'M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12zM12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z',
+            Music: 'M9 18V5l12-2v13M9 10l12-2M7 21a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
             Edit3: 'M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
-            ShieldCheck: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zm-3-11l2 2 4-4',
-            Briefcase: 'M16 16v1a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-1M2 7h20v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zM14 3a2 2 0 0 0-4 0v4h4z',
-            Crown: 'M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z'
+            BrainCircuit: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM9 9h6v6H9z',
+            Sparkles: 'M12 3v4M12 17v4M3 12h4M17 12h4m-14.8-4.8l2.8 2.8m8 8l2.8 2.8m0-13.6l-2.8 2.8m-8 8l-2.8 2.8'
         };
 
         const IconBase = ({ iconName, size = 24, className = "", strokeWidth = 2 }) => {
             const svgPath = SVG_ICONS[iconName] || SVG_ICONS.Circle;
             return (
                 <svg 
-                    width={size} 
-                    height={size} 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth={strokeWidth} 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    className={`inline-flex items-center justify-center ${className}`}
-                    style={{ flexShrink: 0 }}
+                    width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" 
+                    strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" 
+                    className={`inline-flex items-center justify-center ${className}`} style={{ flexShrink: 0 }}
                 >
                     <path d={svgPath} />
                 </svg>
@@ -214,8 +179,8 @@
         };
 
         const THEME = {
-            panel: 'bg-[#121212]/75 backdrop-blur-3xl border border-[#262626]/60 rounded-[2rem] p-5 md:p-8 shadow-2xl shadow-black/80 transition-all duration-300',
-            panelBorder: 'border-[#262626]/60',
+            panel: 'bg-[#121212]/75 backdrop-blur-3xl border border-white/5 rounded-[2rem] p-5 md:p-8 shadow-2xl shadow-black/80 transition-all duration-300',
+            panelBorder: 'border-white/5',
             textMain: 'text-slate-200',
             textMuted: 'text-slate-400',
             accent: 'text-amber-400', 
@@ -225,24 +190,24 @@
         };
 
         const MODES = {
-            MAX: { id: 'max', label: 'Максимум', desc: 'Полная загрузка.', pmTime: 90, engTime: 30, glow: 'rgba(251,191,36,0.03)' },
-            NORM: { id: 'norm', label: 'Норма', desc: 'База.', pmTime: 60, engTime: 25, glow: 'rgba(251,191,36,0.02)' },
-            MIN: { id: 'min', label: 'Минимум', desc: 'Только суть.', pmTime: 15, engTime: 10, glow: 'rgba(239,68,68,0.02)' },
-            RECOVERY: { id: 'recovery', label: 'Восстановление', desc: 'Отдых ЦНС.', pmTime: 0, engTime: 0, glow: 'rgba(168,85,247,0.02)' },
-            SATURDAY: { id: 'saturday', label: 'Суббота', desc: 'Vibe & Relax.', pmTime: 0, engTime: 0, glow: 'rgba(99,102,241,0.03)' },
-            SUNDAY: { id: 'sunday', label: 'Воскресенье', desc: 'Soft Entry.', pmTime: 0, engTime: 0, glow: 'rgba(34,197,94,0.02)' }
+            MAX: { id: 'max', label: 'Максимум', desc: 'Полная загрузка.', pmTime: 90, engTime: 30 },
+            NORM: { id: 'norm', label: 'Норма', desc: 'База.', pmTime: 60, engTime: 25 },
+            MIN: { id: 'min', label: 'Минимум', desc: 'Только суть.', pmTime: 15, engTime: 10 },
+            RECOVERY: { id: 'recovery', label: 'Восстановление', desc: 'Отдых ЦНС.', pmTime: 0, engTime: 0 },
+            SATURDAY: { id: 'saturday', label: 'Суббота', desc: 'Vibe & Relax.', pmTime: 0, engTime: 0 },
+            SUNDAY: { id: 'sunday', label: 'Воскресенье', desc: 'Soft Entry.', pmTime: 0, engTime: 0 }
         };
 
         const MANIFESTS = {
             AM: {
                 title: "УТРЕННИЙ СВЕРХ-МАНИФЕСТ",
                 instruction: "Читай сразу после пробуждения, стоя, расправив плечи, глубоким и уверенным голосом. Твой голос — закон.",
-                text: `«Господь, Архитектор Вселенной, и Ты, Великий Порядок Бытия.\n\nЯ, Павел Марков, пробуждаю свою истинную силу и заявляю права на свою реальность. Прямо сейчас я активирую ультимативный щит разума: любой ментальный шум, страх, сомнение или случайный негатив мгновенно аннигилируются, превращаясь в чистую созидательную энергию. Мои случайные мысли обесточены. Силу имеет только мое осознанное намерение. Воля Павла Маркова — высший закон для моего подсознания.\n\nВселенная, синхронизируй мои вибрации с кодами безграничного богатства, триумфа и масштабного успеха. Я включаю свою личную гравитацию: я — мощный ментальный магнит. Прямо сейчас я притягиваю в свое поле сильных, верных, масштабных и духовно близких мне людей. Мою касту. Моих людей.\n\nГосподь, наполни мое тело несокрушимой энергией, а разум — идеальной структурой и дисциплиной. Мой фокус безупречен. Каждое мое действие сегодня материализует успех, власть и financial изобилие. Я создаю этот день по праву творца. Мой вектор неизменен. Намерение исполнено.\n\nДа будет так. Сбылось. And so it is. Done. Así sea. Hecho está. 14.03.1997. 如此 в реальном времени. 成了. [Rúcǐ zài. Chéng le.]»`
+                text: `«Господь, Архитектор Вселенной, и Ты, Великий Порядок Бытия.\n\nЯ, Павел Марков, пробуждаю свою истинную силу и заявляю права на свою реальность. Прямо сейчас я активирую ультимативный щит разума: любой ментальный шум, страх, сомнение или случайный негатив мгновенно аннигилируются, превращаясь в чистую созидательную энергию. Мои случайные мысли обесточены. Силу имеет только мое осознанное намерение. Воля Павел Маркова — высший закон для моего подсознания.\n\nВселенная, синхронизируй мои вибрации с кодами безграничного богатства, триумфа и масштабного успеха. Я включаю свою личную гравитацию: я — мощный ментальный магнит. Прямо сейчас я притягиваю в свое поле сильных, верных, масштабных и духовно близких мне людей. Мою касту. Моих людей.\n\nГосподь, наполни мое тело несокрушимой энергией, а разум — идеальной структурой и дисциплиной. Мой фокус безупречен. Каждое мое действие сегодня материализует успех, власть и финансовое изобилие. Я создаю этот день по праву творца. Мой вектор неизменен. Намерение исполнено.\n\nДа будет так. Сбылось. And so it is. Done. Así sea. Hecho está. 14.03.1997. 2026. 100 из 100. 如此 в реальном времени. 成了. [Rúcǐ zài. Chéng le.]»`
             },
             PM: {
                 title: "ВЕЧЕРНИЙ СВЕРХ-МАНИФЕСТ",
                 instruction: "Читай непосредственно перед сном, уже в постели. Замедляй темп с каждой строчкой, полностью расслабляя тело на выдохе.",
-                text: `«Господь, Творец всего сущего, и Ты, Вселенная, разворачивающая миры в безупречном порядке.\n\nЯ, Павел Марков, подвожу итог этого дня. Прямо сейчас я полностью очищаю свое пространство от дневного шума и суеты. Любое внешнее влияние, чужие эмоции, страхи и сомнения обесточены, стерты и лишены силы. Мой разум чист, стабилен и неуязвим.\n\nЯ принимаю этот день во всей его полноте — как идеальную и необходимую структуру своего опыта. Моя дисциплина зафиксирована, мои действия неизбежно ведут к триумфу. Всё, что произошло сегодня, уже работает на меня и приумножает мою силу.\n\nПока мое тело погружается в глубокий, исцеляющий сон, мое подсознание программирует физический мир. Вселенная перестраивает реальность под мои утренние манифесты. В эти минуты ко мне прокладывают дорогу колоссальные ресурсы, грандиозный успех и люди высочайшего ментального порядка. Мои клетки обновляются, моя сила растет в тишине. Я засыпаю с абсолютным знанием своего величия. Мой вектор непоколебим.\n\nДа будет так. Сбылось. And so it is. Done. Así sea. Hecho está. 14.03.1997. 如此 в реальном времени. 成了. [Rúcǐ zài. Chéng le.]»`
+                text: `«Господь, Творец всего сущего, и Ты, Вселенная, разворачивающая миры в безупречном порядке.\n\nЯ, Павел Марков, подвожу итог этого дня. Прямо сейчас я полностью очищаю свое пространство от дневного шума и суеты. Любое внешнее влияние, чужие эмоции, страхи и сомнения обесточены, стерты и лишены силы. Мой разум чист, стабилен и неуязвим.\n\nЯ принимаю этот день во всей его полноте — как идеальную и необходимую структуру своего опыта. Моя дисциплина зафиксирована, мои действия неизбежно ведут к триумфу. Всё, что произошло сегодня, уже работает на меня и приумножает мою силу.\n\nПока мое тело погружается в глубокий, исцеляющий сон, мое подсознание программирует физический мир. Вселенная перестраивает реальность под мои утренние манифесты. В эти минуты ко мне прокладывают дорогу колоссальные ресурсы, грандиозный успех и люди высочайшего ментального порядка. Мои клетки обновляются, моя сила растет в тишине. Я засыпаю с абсолютным знанием своего величия. Мой вектор непоколебим.\n\nДа будет так. Сбылось. And so it is. Done. Así sea. Hecho está. 14.03.1997. 2026. 100 из 100. 如此 в реальном времени. 成了. [Rúcǐ zài. Chéng le.]»`
             }
         };
 
@@ -266,11 +231,10 @@
             },
             contentLadder: 0,
             lastLoginDate: new Date().toDateString(),
-            // Новые стейты для v13: масс-трекер стратегических векторов
             strategicGoals: [
-                { id: 'g1', title: 'Книга «Анти-психология»', current: 15, target: 77, unit: 'стр' },
+                { id: 'g1', title: 'Книга «Анти-психология» (План: 77 стр)', current: 15, target: 77, unit: 'стр' },
                 { id: 'g2', title: 'Личный бренд «Каста Феодалов»', current: 35, target: 100, unit: '%' },
-                { id: 'g3', title: 'Масштабирование «MARKOVMADE»', current: 20, target: 100, unit: '%' }
+                { id: 'g3', title: 'Бизнес-масштаб «MARKOVMADE»', current: 20, target: 100, unit: '%' }
             ],
             streakCounter: 0
         };
@@ -278,7 +242,7 @@
         function useAppState() {
             const [state, setState] = useState(() => {
                 try {
-                    const saved = localStorage.getItem('markov_os_v13_hyper_elite');
+                    const saved = localStorage.getItem('markov_os_v15_master');
                     if (saved) return { ...INITIAL_STATE, ...JSON.parse(saved) };
                 } catch (e) {}
                 return INITIAL_STATE;
@@ -292,44 +256,8 @@
             }, []);
 
             useEffect(() => {
-                localStorage.setItem('markov_os_v13_hyper_elite', JSON.stringify(state));
+                localStorage.setItem('markov_os_v15_master', JSON.stringify(state));
             }, [state]);
-
-            useEffect(() => {
-                const today = new Date().toDateString();
-                if (state.lastLoginDate !== today) {
-                    setState(prev => {
-                        const missedPM = !prev.dailyTasks.pm;
-                        const missedEng = !prev.dailyTasks.english;
-                        const missedBody = !prev.dailyTasks.body;
-                        let rrDrop = 0;
-                        if(missedPM || missedBody) rrDrop = 5;
-
-                        // Расчет стрик-удержания дней подряд
-                        const perfectDay = prev.dailyTasks.pm && prev.dailyTasks.english && prev.dailyTasks.body;
-                        const newStreak = perfectDay ? (prev.streakCounter || 0) + 1 : 0;
-
-                        return {
-                            ...prev,
-                            currentMode: 'norm',
-                            missedYesterday: { pm: missedPM, english: missedEng, body: missedBody },
-                            dailyTasks: INITIAL_STATE.dailyTasks,
-                            taskTimestamps: {}, 
-                            energyMetrics: { ...prev.energyMetrics, sleep: 0 },
-                            languagePhrases: [],
-                            contentLadder: 0,
-                            lastLoginDate: today,
-                            streakCounter: newStreak,
-                            stats: { 
-                                ...prev.stats, 
-                                daysLogged: prev.stats.daysLogged + 1, 
-                                returnRate: Math.max(0, Math.min(100, prev.stats.returnRate - rrDrop + 2)) 
-                            }
-                        }
-                    });
-                    showToast("Запущен новый суверенный цикл. Система обновлена. ⚡");
-                }
-            }, [state.lastLoginDate, showToast]);
 
             const update = useCallback((key, value) => {
                 setState(prev => {
@@ -342,7 +270,7 @@
 
             const toggleTask = useCallback((taskId, category, xpReward = 10, forceState = null) => {
                 AudioEngine.playClick();
-                triggerHaptic(15);
+                triggerHaptic(12);
                 setState(prev => {
                     const isDone = forceState !== null ? forceState : !prev.dailyTasks[taskId];
                     if (forceState !== null && prev.dailyTasks[taskId] === forceState) return prev;
@@ -357,7 +285,6 @@
                         newXp += xpReward;
                         newCatVal = Math.min(100, newCatVal + (xpReward / 1.5));
                         updatedTimestamps[taskId] = currentTime;
-                        if(xpReward > 0) showToast(`[${currentTime}] +${xpReward} XP. Действие зафиксировано. ✨`);
                     } else {
                         newXp = Math.max(0, newXp - xpReward);
                         newCatVal = Math.max(0, newCatVal - (xpReward / 1.5));
@@ -371,9 +298,7 @@
                         dailyTasks: { ...prev.dailyTasks, [taskId]: isDone },
                         taskTimestamps: updatedTimestamps,
                         stats: { 
-                            ...prev.stats, 
-                            xp: newXp, 
-                            level: newLevel, 
+                            ...prev.stats, xp: newXp, level: newLevel, 
                             categories: { ...prev.stats.categories, [category]: newCatVal } 
                         }
                     };
@@ -400,22 +325,16 @@
                 triggerHaptic([15, 35]);
                 if (navigator.clipboard && window.isSecureContext) {
                     navigator.clipboard.writeText(text)
-                        .then(() => showToast("Скопировано. Реальность синхронизирована. ✨"))
+                        .then(() => showToast("Данные скопированы в буфер обмена ✨"))
                         .catch(() => showToast("Ошибка копирования", true));
                 } else {
                     let textArea = document.createElement("textarea");
-                    textArea.value = text;
-                    textArea.style.position = "fixed";
-                    textArea.style.left = "-999999px";
-                    document.body.appendChild(textArea);
-                    textArea.focus();
-                    textArea.select();
+                    textArea.value = text; textArea.style.position = "fixed"; textArea.style.left = "-999999px";
+                    document.body.appendChild(textArea); textArea.focus(); textArea.select();
                     try {
                         document.execCommand('copy');
-                        showToast("Скопировано. Реальность синхронизирована. ✨");
-                    } catch (err) {
-                        showToast("Ошибка копирования", true);
-                    }
+                        showToast("Данные скопированы в буфер обмена ✨");
+                    } catch (err) { showToast("Ошибка копирования", true); }
                     textArea.remove();
                 }
             }, [showToast]);
@@ -423,396 +342,106 @@
             return { state, setState, update, toggleTask, saveDailyNote, addLanguagePhrase, copyToClipboard, toast, showToast };
         }
 
-        const Button = ({ children, variant = 'primary', className = "", onClick, icon: IconComponent }) => {
-            const variants = {
-                primary: `${THEME.accentBg} text-[#0a0a0a] font-black shadow-[0_0_20px_rgba(251,191,36,0.15)] ${THEME.accentHover} border border-amber-300/40`,
-                secondary: `bg-[#1a1a1a]/80 text-amber-50 backdrop-blur-md hover:bg-[#222222] border border-[#333333]/60 hover:border-amber-500/40 hover:shadow-[0_0_15px_rgba(251,191,36,0.1)]`,
-                ghost: `text-slate-400 hover:text-amber-400 hover:bg-[#1a1a1a]`,
-                danger: `bg-rose-950/40 text-rose-400 border border-rose-900/50 backdrop-blur-md hover:bg-rose-900/50 hover:text-rose-200 shadow-[0_0_25px_rgba(244,63,94,0.15)]`
-            };
-            return (
-                <button onClick={() => { triggerHaptic(10); if(onClick) onClick(); }} className={`flex items-center justify-center gap-2 md:gap-3 px-4 md:px-6 py-3.5 md:py-4 rounded-2xl transition-all duration-300 active:scale-[0.98] touch-manipulation ${variants[variant]} ${className}`}>
-                    {IconComponent && <IconComponent size={20} className={variant === 'primary' ? 'text-[#0a0a0a]' : ''} />}
-                    <span className="truncate">{children}</span>
-                </button>
-            );
-        };
-
+        // Атомарные UI компоненты верстки
         const NumericInput = ({ label, value, onChange, min=0, max=10, step=1, hint, color="accent" }) => {
             const handleDec = () => { triggerHaptic(10); onChange(Math.max(min, Number(value) - step)); };
             const handleInc = () => { triggerHaptic(10); onChange(Math.min(max, Number(value) + step)); };
-            const handleChange = (e) => {
-                let val = e.target.value;
-                if (val === '') return onChange('');
-                val = Number(val);
-                if (!isNaN(val)) onChange(Math.min(max, Math.max(min, val)));
-            };
-
             return (
                 <div className="flex flex-col gap-2 w-full">
-                    <div className="flex flex-wrap justify-between items-end text-sm mb-1 px-2">
-                        <span className={`${THEME.textMuted} font-bold tracking-wide`}>{label} {hint && <span className="text-xs opacity-50 ml-1 font-normal break-words">({hint})</span>}</span>
-                    </div>
-                    <div className="flex items-center gap-1 bg-[#0f0f0f]/60 backdrop-blur-xl border border-[#262626]/60 p-1.5 rounded-2xl w-full shadow-inner">
-                        <button onClick={handleDec} className="p-3 md:p-4 rounded-xl bg-[#1a1a1a] text-slate-400 hover:text-amber-400 hover:bg-[#222222] transition-all active:scale-95 touch-manipulation flex-shrink-0">
-                            <IconBase iconName="Minus" size={20} />
-                        </button>
-                        <input 
-                            type="number" value={value} onChange={handleChange} min={min} max={max} step={step}
-                            className={`flex-1 bg-transparent text-center text-2xl md:text-3xl font-mono font-black focus:outline-none transition-colors w-full min-w-0 ${color === 'red' ? 'text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.4)]' : 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]'}`}
-                        />
-                        <button onClick={handleInc} className="p-3 md:p-4 rounded-xl bg-[#1a1a1a] text-slate-400 hover:text-amber-400 hover:bg-[#222222] transition-all active:scale-95 touch-manipulation flex-shrink-0">
-                            <IconBase iconName="Plus" size={20} />
-                        </button>
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">{label} {hint && <span className="opacity-50 font-normal">({hint})</span>}</span>
+                    <div className="flex items-center gap-1 bg-black/40 border border-white/5 p-1 rounded-2xl w-full">
+                        <button onClick={handleDec} class="p-3.5 rounded-xl bg-white/5 text-slate-400 hover:text-amber-400 transition-colors"><IconBase iconName="Minus" size={16}/></button>
+                        <input type="number" value={value} readOnly class={`flex-1 bg-transparent text-center text-2xl font-mono font-black ${color === 'red' ? 'text-rose-400' : 'text-amber-400'}`} />
+                        <button onClick={handleInc} class="p-3.5 rounded-xl bg-white/5 text-slate-400 hover:text-amber-400 transition-colors"><IconBase iconName="Plus" size={16}/></button>
                     </div>
                 </div>
             );
         };
 
-        const CheckItem = ({ checked, onChange, label, subLabel, xpBadge, anchor, timeLog }) => (
-            <div className={`flex items-start gap-3 md:gap-4 p-4 md:p-5 rounded-2xl transition-all duration-300 cursor-pointer group border touch-manipulation min-h-[76px] relative overflow-hidden ${checked ? 'bg-amber-500/5 border-amber-500/30 shadow-[0_0_25px_rgba(251,191,36,0.08)]' : 'bg-[#0f0f0f]/40 border-[#262626]/60 hover:border-[#3a3a3a]/80 hover:bg-[#1a1a1a]/60'}`} onClick={onChange}>
-                {checked && <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 animate-[shimmer_2s_infinite]"></div>}
-                <div className={`mt-0.5 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center border-[2.5px] transition-all duration-500 flex-shrink-0 relative z-10 ${checked ? 'bg-gradient-to-br from-yellow-400 to-amber-600 border-transparent text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.5)] scale-110' : 'border-slate-600 group-hover:border-amber-500/50'}`}>
-                    {checked && <IconBase iconName="Check" size={16} strokeWidth={4} />}
-                </div>
-                <div className="flex flex-col flex-1 justify-center relative z-10 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {anchor && <span className="text-amber-500 font-black text-[9px] md:text-[10px] uppercase tracking-widest flex items-center gap-1 truncate"><IconBase iconName="Anchor" size={10} className="flex-shrink-0"/> [Якорь: {anchor}]</span>}
-                        {checked && timeLog && <span className="text-slate-500 font-mono text-[10px] bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">🕒 {timeLog}</span>}
-                    </div>
-                    <span className={`font-bold transition-colors duration-300 text-base md:text-lg leading-tight break-words pr-2 mt-1 ${checked ? 'text-slate-500 line-through decoration-amber-500/50' : 'text-slate-200'}`}>{label}</span>
-                    {subLabel && <span className={`text-xs md:text-sm mt-1.5 transition-colors font-medium leading-snug break-words pr-2 ${checked ? 'text-slate-600' : 'text-slate-400'}`}>{subLabel}</span>}
-                </div>
-                {xpBadge && !checked && (
-                    <span className="text-[10px] md:text-[11px] font-mono font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 md:px-3 py-1 md:py-1.5 rounded-full flex-shrink-0 mt-1 relative z-10 hidden sm:flex">+{xpBadge} XP</span>
-                )}
-            </div>
-        );
-
-        const TipCard = ({ text, title="Принцип системы", iconName = "Zap" }) => (
-            <div className="bg-gradient-to-r from-[#121212]/80 to-[#0f0f0f]/80 backdrop-blur-xl border border-[#262626]/60 rounded-2xl p-4 md:p-6 flex gap-4 md:gap-5 items-start relative overflow-hidden mb-6 md:mb-8 shadow-md">
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-400 to-yellow-600"></div>
-                <div className="p-2.5 md:p-3 bg-amber-500/10 rounded-xl flex-shrink-0 border border-amber-500/20">
-                    <IconBase iconName={iconName} className="text-amber-400" size={20} />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <h4 className="text-[10px] md:text-xs font-black text-amber-400 uppercase tracking-widest mb-1.5 md:mb-2 opacity-90 truncate">{title}</h4>
-                    <p className="text-sm md:text-base text-slate-300 leading-relaxed font-medium break-words">{text}</p>
-                </div>
-            </div>
-        );
-
-        const MotivationCard = ({ text, title="Математика успеха" }) => (
-            <div className="bg-gradient-to-r from-amber-500/10 to-yellow-600/5 border border-amber-500/30 rounded-2xl p-5 md:p-6 flex flex-col relative overflow-hidden shadow-[0_0_20px_rgba(251,191,36,0.05)] backdrop-blur-2xl">
-                <div className="flex items-center gap-3 mb-3">
-                    <IconBase iconName="Crown" className="text-amber-400" size={20}/>
-                    <h4 className="text-xs md:text-sm font-black text-amber-400 uppercase tracking-widest truncate">{title}</h4>
-                </div>
-                <p className="text-sm md:text-base text-slate-200 leading-relaxed font-medium break-words">{text}</p>
-            </div>
-        );
-
-        const FocusTimer = ({ defaultMinutes, taskName, taskId, category, xpReward, onCompleteTask }) => {
-            const [timeLeft, setTimeLeft] = useState(defaultMinutes * 60);
-            const [isActive, setIsActive] = useState(false);
-            const [isOpen, setIsOpen] = useState(false);
-            const [isMicro, setIsMicro] = useState(false);
-            
-            const totalSeconds = useMemo(() => (isMicro ? 2 : defaultMinutes) * 60, [isMicro, defaultMinutes]);
-
-            useEffect(() => { setTimeLeft(totalSeconds); }, [totalSeconds]);
-
-            useEffect(() => {
-                let interval = null;
-                if (isActive && timeLeft > 0) {
-                    interval = setInterval(() => {
-                        setTimeLeft(prev => prev - 1);
-                        if (timeLeft % 10 === 0) AudioEngine.playTick();
-                    }, 1000);
-                } else if (timeLeft === 0 && isActive) {
-                    setIsActive(false);
-                    clearInterval(interval);
-                    AudioEngine.playSuccess();
-                    triggerHaptic([100, 50, 100]);
-                    if (onCompleteTask) onCompleteTask(taskId, category, xpReward, true);
-                    setIsOpen(false);
-                }
-                return () => clearInterval(interval);
-            }, [isActive, timeLeft, taskId, category, xpReward, onCompleteTask]);
-
-            const toggle = () => { triggerHaptic(15); setIsActive(!isActive); };
-            const reset = () => { triggerHaptic(10); setIsActive(false); setTimeLeft(totalSeconds); };
-            
-            const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-            const s = (timeLeft % 60).toString().padStart(2, '0');
-            const progress = ((totalSeconds - timeLeft) / totalSeconds) * 100;
-
-            if (!isOpen) {
-                return (
-                    <div className="flex flex-wrap gap-2 md:gap-3 mt-4">
-                        <button onClick={() => { triggerHaptic(10); setIsMicro(false); setIsOpen(true); }} className="text-[11px] md:text-xs flex items-center gap-1.5 md:gap-2 font-bold text-slate-300 bg-[#1a1a1a]/90 border border-[#333333]/60 px-3 md:px-4 py-2.5 md:py-3 rounded-xl hover:bg-[#222222] hover:text-amber-400 transition-all touch-manipulation">
-                            <IconBase iconName="Timer" size={16} className="text-amber-500"/> Фокус {defaultMinutes} мин
-                        </button>
-                        {defaultMinutes > 15 && (
-                            <button onClick={() => { triggerHaptic(15); setIsMicro(true); setIsOpen(true); }} className="text-[11px] md:text-xs flex items-center gap-1.5 md:gap-2 font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 md:px-4 py-2.5 md:py-3 rounded-xl hover:bg-amber-500/20 transition-all touch-manipulation shadow-[0_0_10px_rgba(251,191,36,0.1)]">
-                                <IconBase iconName="Zap" size={16} /> Микро-старт (2 мин)
-                            </button>
-                        )}
-                    </div>
-                );
-            }
-
-            return (
-                <div className="mt-4 md:mt-5 p-5 md:p-8 bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-2xl md:rounded-3xl flex flex-col items-center relative overflow-hidden w-full">
-                    {isActive && <div className="absolute inset-0 bg-amber-500/5 animate-pulse pointer-events-none"></div>}
-                    <div className="flex justify-between w-full mb-6 md:mb-8 items-center relative z-10">
-                        <span className="text-slate-300 font-black text-xs md:text-sm flex items-center gap-2 uppercase tracking-wider truncate">
-                            <IconBase iconName="Target" size={18} className="text-amber-500 flex-shrink-0"/> <span className="truncate">{isMicro ? 'Атомный Старт' : taskName}</span>
-                        </span>
-                        <button onClick={() => { triggerHaptic(10); setIsActive(false); setIsOpen(false); }} className="text-slate-500 hover:text-white p-2 bg-[#1a1a1a] rounded-xl transition-colors flex-shrink-0"><IconBase iconName="X" size={18}/></button>
-                    </div>
-                    
-                    <div className="relative w-40 h-40 md:w-48 md:h-48 flex items-center justify-center mb-8 md:mb-10">
-                        <svg className="w-full h-full -rotate-90 absolute drop-shadow-md" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="45" fill="none" stroke="#262626" strokeWidth="6" />
-                            <circle cx="50" cy="50" r="45" fill="none" stroke="#fbbf24" strokeWidth="6" strokeLinecap="round" strokeDasharray="283" strokeDashoffset={283 - (283 * progress) / 100} className="transition-all duration-1000 ease-linear drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]" />
-                        </svg>
-                        <div className="text-4xl md:text-5xl font-mono font-black text-white relative z-10 drop-shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-tighter">{m}:{s}</div>
-                    </div>
-
-                    <div className="flex gap-3 md:gap-4 w-full max-w-[300px] relative z-10">
-                        <button onClick={toggle} className={`flex-1 py-3 md:py-4 rounded-xl font-black text-base md:text-lg flex justify-center items-center gap-2 md:gap-3 transition-all active:scale-95 touch-manipulation ${isActive ? 'bg-[#1a1a1a] text-slate-200 border border-[#333333]' : 'bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:brightness-110'}`}>
-                            {isActive ? <IconBase iconName="Pause" size={20}/> : <IconBase iconName="Play" size={20}/>} {isActive ? 'Пауза' : 'Фокус'}
-                        </button>
-                        <button onClick={reset} className="px-4 md:px-5 py-3 md:py-4 rounded-xl bg-[#0f0f0f] border border-[#262626] text-slate-400 hover:text-white hover:border-slate-500 transition-all active:scale-95 touch-manipulation">
-                            <IconBase iconName="RotateCcw" size={20}/>
-                        </button>
-                    </div>
-                </div>
-            );
+        const TextInput = ({ value, onChange, placeholder, multiline = false }) => {
+            const cls = "w-full bg-black/30 border border-white/5 rounded-2xl p-4 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all font-medium text-sm leading-relaxed";
+            return multiline ? <textarea rows={3} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} class={cls} /> : <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} class={cls} />;
         };
 
-        const BreathingTimer = ({ type = 'morning', onComplete }) => {
-            const [isActive, setIsActive] = useState(false);
-            const TOTAL_SECONDS = 180;
-            const [timeElapsed, setTimeElapsed] = useState(0);
-            
-            const [phaseName, setPhaseName] = useState('Готов?');
-            const [phaseSecondsLeft, setPhaseSecondsLeft] = useState(0);
-            const [scale, setScale] = useState(1);
-            
-            useEffect(() => {
-                let interval;
-                if (isActive && timeElapsed < TOTAL_SECONDS) {
-                    interval = setInterval(() => {
-                        setTimeElapsed(prev => prev + 1);
-                        AudioEngine.playTick();
-                    }, 1000);
-                } else if (timeElapsed >= TOTAL_SECONDS && isActive) {
-                    setIsActive(false);
-                    setPhaseName('Практика завершена.');
-                    setPhaseSecondsLeft(0);
-                    setScale(1);
-                    AudioEngine.playSuccess();
-                    if(onComplete) onComplete();
-                }
-                return () => clearInterval(interval);
-            }, [isActive, timeElapsed, onComplete]);
-
-            useEffect(() => {
-                if (!isActive) return;
-                const currentCycleSec = timeElapsed % (type === 'morning' ? 16 : 10);
-
-                if (type === 'morning') {
-                    if (currentCycleSec < 4) {
-                        if (currentCycleSec === 0) AudioEngine.playPhaseChange();
-                        setPhaseName('Вдох'); setPhaseSecondsLeft(4 - currentCycleSec); setScale(1.6);
-                    } else if (currentCycleSec < 8) {
-                        if (currentCycleSec === 4) AudioEngine.playPhaseChange();
-                        setPhaseName('Задержка'); setPhaseSecondsLeft(8 - currentCycleSec); setScale(1.6);
-                    } else if (currentCycleSec < 12) {
-                        if (currentCycleSec === 8) AudioEngine.playPhaseChange();
-                        setPhaseName('Выдох'); setPhaseSecondsLeft(12 - currentCycleSec); setScale(1);
-                    } else {
-                        if (currentCycleSec === 12) AudioEngine.playPhaseChange();
-                        setPhaseName('Задержка'); setPhaseSecondsLeft(16 - currentCycleSec); setScale(1);
-                    }
-                } else {
-                    if (currentCycleSec < 4) {
-                        if (currentCycleSec === 0) AudioEngine.playPhaseChange();
-                        setPhaseName('Вдох'); setPhaseSecondsLeft(4 - currentCycleSec); setScale(1.5);
-                    } else {
-                        if (currentCycleSec === 4) AudioEngine.playPhaseChange();
-                        setPhaseName('Выдох'); setPhaseSecondsLeft(10 - currentCycleSec); setScale(1);
-                    }
-                }
-            }, [timeElapsed, isActive, type]);
-
-            const toggle = () => { triggerHaptic(15); setIsActive(!isActive); };
-            const timeLeft = TOTAL_SECONDS - timeElapsed;
-            const m = Math.floor(timeLeft / 60);
-            const s = (timeLeft % 60).toString().padStart(2, '0');
-
-            return (
-                <div className="bg-[#0f0f0f]/60 border border-[#262626]/60 p-5 md:p-10 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center relative overflow-hidden shadow-inner min-h-[350px] md:min-h-[400px] w-full">
-                    <div className="absolute top-4 left-4 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 bg-[#1a1a1a]/80 px-3 py-1.5 rounded-lg border border-[#333333]/60">
-                        <IconBase iconName="Wind" size={14} className="text-amber-400"/>
-                        {type === 'morning' ? 'Box Breathing' : 'Relax Breathing'}
-                    </div>
-                    <div className="absolute top-4 right-4 text-xs font-mono font-black text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/30">
-                        {m}:{s}
-                    </div>
-                    
-                    <div className="relative w-44 h-44 md:w-52 h-52 flex items-center justify-center mb-6 mt-6">
-                        <div className="absolute rounded-full bg-amber-500/10 blur-3xl transition-all ease-in-out" style={{ width: '100%', height: '100%', transform: `scale(${scale})`, transitionDuration: '1000ms' }}></div>
-                        <div className="relative z-10 rounded-full border-[3px] border-amber-500/40 bg-gradient-to-br from-[#121212] to-[#050505] flex flex-col items-center justify-center transition-all ease-in-out shadow-[0_0_30px_rgba(251,191,36,0.1)]" style={{ width: '110px', height: '110px', transform: `scale(${scale})`, transitionDuration: '1000ms' }}>
-                            {isActive ? <div className="text-4xl md:text-5xl font-black font-mono text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]">{phaseSecondsLeft}</div> : <IconBase iconName="Wind" className="text-slate-600" size={36} />}
-                        </div>
-                    </div>
-
-                    <div className={`text-2xl md:text-3xl font-black mb-4 transition-colors duration-500 h-10 flex items-center tracking-tight ${isActive ? 'text-white drop-shadow-md' : 'text-slate-500'}`}>
-                        {phaseName}
-                    </div>
-                    
-                    <p className="text-xs md:text-sm text-slate-400 text-center max-w-sm mb-6 font-medium leading-relaxed bg-[#1a1a1a]/40 p-3 rounded-xl border border-[#262626]/60">
-                        {type === 'morning' ? "Аудио-метроном активен. Держи ритмику 4-4-4-4 с закрытыми глазами." : "Глубокий выдох длиннее вдоха. Обнуление симпатического тонуса."}
-                    </p>
-
-                    <Button variant={isActive ? 'secondary' : 'primary'} onClick={toggle} className="w-full max-w-[240px]" icon={isActive ? Pause : Play}>
-                        {isActive ? 'Пауза' : (timeElapsed > 0 ? 'Продолжить' : 'Запустить ритуал')}
-                    </Button>
-                </div>
-            );
-        };
-
+        // Вкладка: СЕГОДНЯ (Dashboard)
         const DashboardView = ({ state, update, toggleTask }) => {
-            const todayDate = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
+            const todayStr = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
             const mode = state.currentMode;
             const isMin = mode === 'min' || mode === 'recovery';
-            const isWeekend = mode === 'saturday' || mode === 'sunday';
             const timeSettings = MODES[mode] || MODES.NORM;
 
-            // Динамический стоический блок "Амор Фати"
-            const randomQuote = useMemo(() => {
-                const dayIndex = new Date().getDate() % STOIC_QUOTES.length;
-                return STOIC_QUOTES[dayIndex];
-            }, [state.currentTab]);
+            const curQuote = useMemo(() => {
+                const idx = new Date().getDate() % STOIC_QUOTES.length;
+                return STOIC_QUOTES[idx];
+            }, []);
 
-            const handleEmergencyReset = () => {
-                triggerHaptic([40, 40, 40]);
-                update('currentMode', 'min');
-            };
-
-            const changeGoalVal = (id, inc) => {
-                const updated = state.strategicGoals.map(g => {
-                    if (g.id === id) {
-                        const n = inc ? Math.min(g.target, g.current + 1) : Math.max(0, g.current - 1);
-                        return { ...g, current: n };
-                    }
+            const changeGoal = (id, inc) => {
+                const upd = state.strategicGoals.map(g => {
+                    if (g.id === id) return { ...g, current: inc ? Math.min(g.target, g.current + 1) : Math.max(0, g.current - 1) };
                     return g;
                 });
-                update('strategicGoals', updated);
-            };
-
-            const getDynamicTasks = () => {
-                if (mode === 'saturday') return (
-                    <div className="p-6 bg-[#0f0f0f]/40 rounded-2xl border border-[#262626]/60 text-center">
-                        <div className="flex justify-center mb-4"><IconBase iconName="Moon" className="text-slate-500" size={40} /></div>
-                        <h3 className="text-xl font-black text-white mb-2">Я — СОЗДАТЕЛЬ. Суббота.</h3>
-                        <p className="text-slate-400 text-sm max-w-sm mx-auto">Творчество (Suno), глубокий рефид, стратегический кодинг. Тяжелые тренировки отключены.</p>
-                    </div>
-                );
-                if (mode === 'sunday') return (
-                    <div className="space-y-4">
-                        <TipCard text="Воскресенье — день планирования и разгрузки префронтальной коры. Заполнение физической магнитной доски." iconName="Calendar"/>
-                        <CheckItem anchor="Пробуждение" checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', 10)} label="План Недели (Магнитная доска)" subLabel="Обновить задачи и фокус." xpBadge="10" />
-                        <CheckItem anchor="Обед" checked={state.dailyTasks.content} timeLog={state.taskTimestamps.content} onChange={() => toggleTask('content', 'content', 10)} label="Контент план" subLabel="Обдумать идеи на ПН-ПТ." xpBadge="10" />
-                    </div>
-                );
-                return (
-                    <div className="space-y-6">
-                        <div>
-                            <h3 className="text-xs font-black text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2"><IconBase iconName="Layers" size={16}/> Я — Структура</h3>
-                            <div className="space-y-3">
-                                <div className="bg-[#0f0f0f]/40 border border-[#262626]/60 rounded-2xl p-2 pb-4">
-                                    <CheckItem anchor="Конец Английского" checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', isMin?10:15)} label="Project Management" subLabel={`Главный приоритет: ${timeSettings.pmTime} мин.`} xpBadge={isMin?"10":"15"} />
-                                    {!state.dailyTasks.pm && <div className="px-3"><FocusTimer defaultMinutes={timeSettings.pmTime} taskName="PM Deep Work" taskId="pm" category="pm" xpReward={isMin?10:15} onCompleteTask={toggleTask} /></div>}
-                                </div>
-                                {!isMin && (
-                                    <div className="bg-[#0f0f0f]/40 border border-[#262626]/60 rounded-2xl p-2 pb-4">
-                                        <CheckItem anchor="Завтрак" checked={state.dailyTasks.english} timeLog={state.taskTimestamps.english} onChange={() => toggleTask('english', 'english', 10)} label="English Speaking" subLabel={`Практика: ${timeSettings.engTime} мин.`} xpBadge="10" />
-                                        {!state.dailyTasks.english && <div className="px-3"><FocusTimer defaultMinutes={timeSettings.engTime} taskName="English Practice" taskId="english" category="english" xpReward={10} onCompleteTask={toggleTask} /></div>}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                        <div>
-                            <h3 className="text-xs font-black text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2"><IconBase iconName="Dumbbell" size={16}/> Я — Атлет</h3>
-                            <CheckItem anchor="Окна между клиентами" checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label={isMin ? "Легкая растяжка (10 мин)" : "Личная Тренировка + Аудиокнига"} subLabel={isMin ? "Снять физический блок." : "Фундамент энергии (16:00 - 22:30)."} xpBadge="20" />
-                        </div>
-                    </div>
-                );
+                update('strategicGoals', upd);
             };
 
             return (
-                <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                    
-                    {/* Топовый Блок Динамической Философии "Амор Фати" */}
-                    <div className="p-4 md:p-6 rounded-3xl bg-gradient-to-r from-amber-500/10 via-transparent to-transparent border border-amber-500/20 shadow-lg relative overflow-hidden backdrop-blur-2xl">
-                        <div className="absolute right-4 top-4 opacity-10"><IconBase iconName="Anchor" size={80} /></div>
-                        <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 px-2 py-1 rounded">Щит Разума // Amor Fati</span>
-                        <p className="mt-3 text-sm md:text-lg italic font-medium text-slate-200 leading-relaxed">"{randomQuote.text}"</p>
-                        <h4 className="mt-2 text-xs font-bold text-slate-500 font-mono text-right">— {randomQuote.author}</h4>
+                <div class="space-y-6 md:space-y-8 animate-in">
+                    {/* Стоическая цитата-щит дня */}
+                    <div class="p-5 md:p-6 rounded-3xl bg-gradient-to-r from-amber-500/10 via-transparent to-transparent border border-white/5 backdrop-blur-3xl relative overflow-hidden">
+                        <span class="text-[9px] font-black text-amber-400 uppercase tracking-widest font-mono bg-amber-400/10 px-2 py-0.5 rounded">Суверенное Мышление // Amor Fati</span>
+                        <p class="mt-3 text-sm md:text-base italic font-medium text-slate-300 leading-relaxed">"{curQuote.text}"</p>
+                        <h5 class="text-right text-[11px] font-bold text-slate-500 mt-1">— {curQuote.author}</h5>
                     </div>
 
-                    <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-5">
+                    {/* Заголовок страницы и выбор режима работы */}
+                    <div class="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4 border-b border-white/5 pb-4">
                         <div>
-                            <div className="flex items-center gap-3">
-                                <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-white uppercase">Сегодня</h1>
+                            <div class="flex items-center gap-3">
+                                <h1 class="text-3xl md:text-5xl font-black uppercase tracking-tighter">Сегодня</h1>
                                 {state.streakCounter > 0 && (
-                                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-black font-black text-xs md:text-sm shadow-lg shadow-orange-500/20">
-                                        <IconBase iconName="Flame" size={16} /> <span>STREAK: {state.streakCounter} ДН</span>
+                                    <div class="flex items-center gap-1 px-3 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-black font-mono font-black text-xs">
+                                        <IconBase iconName="Flame" size={14}/> <span>STREAK: {state.streakCounter} ДН</span>
                                     </div>
                                 )}
                             </div>
-                            <p className="text-amber-400 font-mono mt-2 capitalize text-sm sm:text-lg tracking-widest font-bold flex items-center gap-2"><IconBase iconName="Calendar" size={18}/> {todayDate}</p>
+                            <p class="text-amber-400 font-mono text-sm uppercase tracking-wider mt-1 flex items-center gap-1.5"><IconBase iconName="Calendar" size={14}/>{todayStr}</p>
                         </div>
-                        
-                        <div className="flex bg-[#0f0f0f]/60 p-2 rounded-2xl border border-[#262626]/60 overflow-x-auto w-full xl:w-auto hide-scrollbar gap-1.5 items-center">
+                        <div class="flex bg-black/40 p-1.5 rounded-2xl border border-white/5 overflow-x-auto w-full xl:w-auto hide-scrollbar gap-1 items-center">
                             {Object.values(MODES).map(m => (
                                 <button 
-                                    key={m.id} onClick={() => { triggerHaptic(15); update('currentMode', m.id); }}
-                                    className={`px-3 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all duration-300 uppercase tracking-wider ${state.currentMode === m.id ? 'bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.3)]' : 'text-slate-500 hover:text-slate-200'}`}
+                                    key={m.id} onClick={() => { triggerHaptic(12); update('currentMode', m.id); }}
+                                    class={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all duration-200 ${state.currentMode === m.id ? 'bg-gradient-to-r from-amber-400 to-yellow-600 text-black shadow-lg shadow-amber-500/10' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     {m.label}
                                 </button>
                             ))}
-                            <button onClick={handleEmergencyReset} className="px-3 py-2.5 rounded-xl text-xs font-black bg-rose-950/50 text-rose-400 border border-rose-900/60 uppercase tracking-wider hover:bg-rose-900 hover:text-white transition-all ml-2 flex-shrink-0 animate-pulse">
-                                Аварийный сброс
+                            <button onClick={() => { triggerHaptic([30, 30]); update('currentMode', 'min'); }} class="px-3 py-2 rounded-xl text-xs font-black text-rose-400 bg-rose-950/30 border border-rose-900/40 uppercase ml-1 animate-pulse flex-shrink-0">
+                                Аварийный Сброс
                             </button>
                         </div>
                     </div>
 
-                    {/* Мега Универсальный Блок Стратегических Векторов / Целей Павла Маркова */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Развернутый трекер стратегических целей Павла Маркова */}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {state.strategicGoals.map(g => {
                             const pct = Math.min(100, Math.floor((g.current / g.target) * 100));
                             return (
-                                <div key={g.id} className="p-5 rounded-3xl bg-[#121212]/50 border border-[#262626]/60 backdrop-blur-3xl flex flex-col justify-between shadow-xl">
+                                <div key={g.id} class="premium-glass p-5 rounded-3xl flex flex-col justify-between">
                                     <div>
-                                        <div className="flex justify-between items-start gap-2">
-                                            <h4 className="text-sm font-black uppercase text-slate-300 tracking-tight leading-snug">{g.title}</h4>
-                                            <span className="font-mono text-xs font-bold text-amber-400">{pct}%</span>
+                                        <div class="flex justify-between items-start gap-2">
+                                            <span class="text-xs font-black uppercase tracking-wide text-slate-300">{g.title}</span>
+                                            <span class="font-mono text-xs font-black text-amber-400 bg-amber-400/5 border border-amber-400/10 px-1.5 rounded">{pct}%</span>
                                         </div>
-                                        <div className="w-full h-1.5 bg-[#050505] rounded-full mt-3 overflow-hidden border border-[#262626]/40">
-                                            <div className="h-full bg-gradient-to-r from-amber-500 to-yellow-500 transition-all duration-500" style={{ width: `${pct}%` }}></div>
+                                        <div class="w-full h-1 bg-black rounded-full mt-3 overflow-hidden">
+                                            <div class="h-full bg-gradient-to-r from-amber-500 to-yellow-500" style={{ width: `${pct}%` }}></div>
                                         </div>
                                     </div>
-                                    <div className="flex justify-between items-center mt-5 pt-3 border-t border-[#262626]/40">
-                                        <span className="font-mono text-xs text-slate-500">{g.current} / {g.target} {g.unit}</span>
-                                        <div className="flex gap-1.5">
-                                            <button onClick={() => changeGoalVal(g.id, false)} className="w-8 h-8 rounded-lg bg-[#1a1a1a] border border-[#333333]/60 flex items-center justify-center text-slate-400 hover:text-white active:scale-90"><IconBase iconName="Minus" size={12} /></button>
-                                            <button onClick={() => changeGoalVal(g.id, true)} className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 hover:text-white active:scale-90"><IconBase iconName="Plus" size={12} /></button>
+                                    <div class="flex justify-between items-center mt-4 pt-3 border-t border-white/5">
+                                        <span class="font-mono text-xs text-slate-500">
+                                            {g.id === 'g1' ? `Глава ${Math.floor(g.current/11) + 1} // ${g.current}/${g.target} ${g.unit}` : `${g.current} / ${g.target} ${g.unit}`}
+                                        </span>
+                                        <div class="flex gap-1">
+                                            <button onClick={() => changeGoal(g.id, false)} class="w-7 h-7 bg-white/5 rounded-md flex items-center justify-center text-slate-400 hover:text-white active:scale-90"><IconBase iconName="Minus" size={12}/></button>
+                                            <button onClick={() => changeGoal(g.id, true)} class="w-7 h-7 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-center justify-center text-amber-400 hover:text-white active:scale-90"><IconBase iconName="Plus" size={12}/></button>
                                         </div>
                                     </div>
                                 </div>
@@ -820,32 +449,63 @@
                         })}
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-                        <div className="p-6 md:p-8 rounded-[2rem] bg-[#121212]/75 backdrop-blur-3xl border border-[#262626]/60 shadow-2xl flex flex-col">
-                            <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 uppercase tracking-tight mb-6">
-                                <IconBase iconName="Activity" className="text-amber-400" size={24}/> 
-                                <span>Задачи Матрицы</span>
-                            </h2>
-                            {getDynamicTasks()}
+                    {/* Рабочие задачи текущего дня */}
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Левый блок: Матрица глубокой фокусировки */}
+                        <div class="premium-glass p-5 md:p-6 rounded-[2rem] flex flex-col justify-between">
+                            <div>
+                                <h2 class="text-lg font-black uppercase tracking-wider text-white mb-4 flex items-center gap-2">
+                                    <IconBase iconName="Activity" className="text-amber-400" size={18}/>
+                                    <span>{mode === 'saturday' ? 'Творческий слот' : mode === 'sunday' ? 'Инкубатор планов' : 'Матрица задач'}</span>
+                                </h2>
+                                {mode === 'saturday' ? (
+                                    <div class="p-6 bg-black/20 rounded-2xl border border-white/5 text-center my-auto">
+                                        <IconBase iconName="Moon" className="text-slate-600 mb-3" size={32}/>
+                                        <h4 class="text-sm font-black uppercase text-white mb-1">Режим Создателя Активирован</h4>
+                                        <p class="text-xs text-slate-400">Тяжелый код и бизнес-системы заморожены. Смена деятельности — это лучший отдых для ЦНС.</p>
+                                    </div>
+                                ) : mode === 'sunday' ? (
+                                    <div class="space-y-3">
+                                        <CheckItem anchor="Пробуждение" checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', 10)} label="Обновление магнитной доски на стене" subLabel="Сброс и расстановка жестких приоритетов." />
+                                        <CheckItem anchor="Обед" checked={state.dailyTasks.content} timeLog={state.taskTimestamps.content} onChange={() => toggleTask('content', 'content', 10)} label="Контент-векторы на ПН-ПТ" subLabel="Фиксация идей." />
+                                    </div>
+                                ) : (
+                                    <div class="space-y-4">
+                                        <div class={`p-1.5 rounded-2xl border transition-all ${state.dailyTasks.pm ? 'border-amber-500/20 bg-amber-500/5' : 'border-white/5 bg-black/10'}`}>
+                                            <CheckItem anchor="English" checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', isMin?10:15)} label="Project Management" subLabel="Фокус на построение масштабируемых систем." />
+                                            {!state.dailyTasks.pm && <FocusTimer defaultMinutes={timeSettings.pmTime} taskName="PM Deep Work" taskId="pm" category="pm" xpReward={isMin?10:15} onCompleteTask={toggleTask} />}
+                                        </div>
+                                        {!isMin && (
+                                            <div class={`p-1.5 rounded-2xl border transition-all ${state.dailyTasks.english ? 'border-amber-500/20 bg-amber-500/5' : 'border-white/5 bg-black/10'}`}>
+                                                <CheckItem anchor="Завтрак" checked={state.dailyTasks.english} timeLog={state.taskTimestamps.english} onChange={() => toggleTask('english', 'english', 10)} label="English Speaking Practice" subLabel="Инструмент глобального эксперта." />
+                                                {!state.dailyTasks.english && <FocusTimer defaultMinutes={timeSettings.engTime} taskName="English Practice" taskId="english" category="english" xpReward={10} onCompleteTask={toggleTask} />}
+                                            </div>
+                                        )}
+                                        <CheckItem anchor="Окна в расписании" checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label={isMin ? "Микро-растяжка ЦНС" : "Личная силовая тренировка + Аудиокнига"} />
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="p-6 md:p-8 rounded-[2rem] bg-[#121212]/75 backdrop-blur-3xl border border-[#262626]/60 shadow-2xl flex flex-col">
-                            <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 uppercase tracking-tight border-b border-[#262626]/60 pb-4 mb-4"><IconBase iconName="Shield" className="text-slate-400" size={20}/> <span>Обязательная База</span></h2>
-                            <div className="space-y-4">
-                                <div className="p-4 rounded-2xl bg-[#0f0f0f]/50 border border-[#262626]/60">
-                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Утренние Якоря</h4>
-                                    <div className="space-y-2">
-                                        <CheckItem anchor="Пробуждение" checked={state.dailyTasks.waterAm} timeLog={state.taskTimestamps.waterAm} onChange={() => toggleTask('waterAm', 'spirit', 5)} label="Вода + Свет + Проветривание" />
-                                        <CheckItem anchor="Вода" checked={state.dailyTasks.morningCharge} timeLog={state.taskTimestamps.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Микро-зарядка (2 мин)" />
+                        {/* Правый блок: Фиксированные дофаминовые цепочки привычек */}
+                        <div class="premium-glass p-5 md:p-6 rounded-[2rem] flex flex-col">
+                            <h2 class="text-lg font-black uppercase tracking-wider text-white mb-4 flex items-center gap-2"><IconBase iconName="Shield" className="text-slate-400" size={18}/><span>Нейро-цепочки (Habit Stacking)</span></h2>
+                            <div class="space-y-4">
+                                <div class="p-4 rounded-2xl bg-black/20 border border-white/5 relative">
+                                    <span class="absolute top-3 right-4 text-[9px] font-mono text-slate-500 uppercase tracking-widest font-black">Утро</span>
+                                    <div class="space-y-2 mt-2">
+                                        <CheckItem anchor="Пробуждение" checked={state.dailyTasks.waterAm} timeLog={state.taskTimestamps.waterAm} onChange={() => toggleTask('waterAm', 'spirit', 5)} label="Вода + Свет + Воздух" />
+                                        <CheckItem anchor="Вода" checked={state.dailyTasks.morningCharge} timeLog={state.taskTimestamps.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Микро-зарядка ЦНС (2 мин)" />
                                         <CheckItem anchor="Зарядка" checked={state.dailyTasks.breathAm} timeLog={state.taskTimestamps.breathAm} onChange={() => toggleTask('breathAm', 'spirit', 10)} label="Дыхание Box Breathing" />
-                                        <CheckItem anchor="Дыхание" checked={state.dailyTasks.prayerAm} timeLog={state.taskTimestamps.prayerAm} onChange={() => toggleTask('prayerAm', 'spirit', 10)} label="Утренний Манифест" />
+                                        <CheckItem anchor="Дыхание" checked={state.dailyTasks.prayerAm} timeLog={state.taskTimestamps.prayerAm} onChange={() => toggleTask('prayerAm', 'spirit', 10)} label="Утренний Сверх-Манифест" />
                                     </div>
                                 </div>
-                                <div className="p-4 rounded-2xl bg-[#0f0f0f]/50 border border-[#262626]/60">
-                                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Вечерние Якоря</h4>
-                                    <div className="space-y-2">
-                                        <CheckItem anchor="Постель" checked={state.dailyTasks.breathPm} timeLog={state.taskTimestamps.breathPm} onChange={() => toggleTask('breathPm', 'spirit', 10)} label="Дыхание перед сном (3 мин)" />
-                                        <CheckItem anchor="Дыхание" checked={state.dailyTasks.prayerPm} timeLog={state.taskTimestamps.prayerPm} onChange={() => toggleTask('prayerPm', 'spirit', 10)} label="Вечерний Манифест" />
+                                <div class="p-4 rounded-2xl bg-black/20 border border-white/5 relative">
+                                    <span class="absolute top-3 right-4 text-[9px] font-mono text-slate-500 uppercase tracking-widest font-black">Вечер</span>
+                                    <div class="space-y-2 mt-2">
+                                        {!isMin && !isWeekend && <CheckItem anchor="Конец ведения" checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 10)} label="Домашнее кардио (Сброс кортизола)" />}
+                                        <CheckItem anchor="Постель" checked={state.dailyTasks.breathPm} timeLog={state.taskTimestamps.breathPm} onChange={() => toggleTask('breathPm', 'spirit', 10)} label="Дыхание Relax (Выдох длиннее)" />
+                                        <CheckItem anchor="Дыхание" checked={state.dailyTasks.prayerPm} timeLog={state.taskTimestamps.prayerPm} onChange={() => toggleTask('prayerPm', 'spirit', 10)} label="Вечерний Сверх-Манифест" />
                                     </div>
                                 </div>
                             </div>
@@ -855,49 +515,50 @@
             );
         };
 
+        // Вкладка: РАСПОРЯДОК ДНЯ
         const ScheduleView = ({ state }) => {
             const mode = state.currentMode;
-            const getTimeline = () => {
+            const timeline = useMemo(() => {
                 if (mode === 'saturday') return [
-                    { time: '11:00', title: 'Мягкий подъём', desc: 'Вода, свет, запуск легкого дофамина.', icon: 'Compass' },
-                    { time: '14:00', title: 'Творчество (Vibe Coding)', desc: 'Suno, Obsidian, кодинг в кайф.', icon: 'Music' },
-                    { time: '18:00', title: 'Контроль Рефида', desc: 'Лимит 4500 ккал. Полная разгрузка ЦНС.', icon: 'Coffee' },
-                    { time: '23:30', title: 'Мягкий вечер', desc: 'Уход, Вечерний Манифест. Глубокий сон.', icon: 'Moon' }
+                    { time: '11:00', title: 'Мягкий подъём', desc: 'Вода, свет, запуск базовой физиологии.', icon: 'Compass' },
+                    { time: '14:00', title: 'Творчество (Vibe Coding)', desc: 'Suno, Obsidian, свободный созидательный поток.', icon: 'Music' },
+                    { time: '18:00', title: 'Контроль Рефида', desc: 'Лимит 4500 ккал. Полное расслабление ЦНС.', icon: 'Coffee' },
+                    { time: '23:30', title: 'Вечерний Манифест', desc: 'Обнуление ментального шума. Сон.', icon: 'Moon' }
                 ];
                 if (mode === 'sunday') return [
-                    { time: '11:00', title: 'Подъем', desc: 'Мягкий вход, вода, свет.', icon: 'Compass' },
-                    { time: '13:00', title: 'План Недели', desc: 'Обновление задач на магнитной доске.', icon: 'Layout' },
-                    { time: '19:00', title: 'Контент-план', desc: 'Создание векторов на ПН-ПТ.', icon: 'PenTool' }
+                    { time: '11:00', title: 'Подъем', desc: 'Вода, свет, запуск систем.', icon: 'Compass' },
+                    { time: '13:00', title: 'Магнитная доска', desc: 'Жесткое планирование спринта на неделю вперед.', icon: 'Layout' },
+                    { time: '19:00', title: 'Контент-план', desc: 'Разметка смысловых векторов на неделю.', icon: 'PenTool' }
                 ];
                 return [
-                    { time: '10:30', title: 'Подъём', desc: 'Стабилизация. Вода, свет, проветривание.', icon: 'Compass' },
-                    { time: '10:45', title: 'Дыхание + Манифест', desc: 'Box Breathing + Утренний сверх-манифест.', icon: 'Flame' },
-                    { time: '11:10', title: 'Завтрак + Микро-языки', desc: '[Якорь: Еда]. Замена YouTube на Испанский/Mandarin.', icon: 'Utensils', highlight: true },
-                    { time: '11:35', title: 'Daily English Speaking', desc: 'Инструмент глобального масштабирования личности.', icon: 'Globe', highlight: true },
-                    { time: '12:05', title: 'Project Management [Фокус]', desc: '[Якорь: Конец English]. Инженерия бизнес-систем.', icon: 'BrainCircuit', highlight: true },
-                    { time: '13:05', title: 'ЛЕГАЛЬНЫЙ БЛОК: Перезагрузка', desc: 'YouTube, соцсети. Полное охлаждение префронтальной коры.', icon: 'Coffee', special: true },
-                    { time: '13:45', title: 'Контент + Obsidian', desc: 'Запись смыслов, инсайтов, рилсов в базу.', icon: 'Edit3', highlight: true },
-                    { time: '16:00', title: 'Работа с подопечными + Тренировка', desc: 'Личная тренировка жестко встраивается в окна между ведением.', icon: 'Dumbbell' },
-                    { time: '23:00', title: 'Кардио дома', desc: '[Якорь: Конец работы] 20-25 минут сброса кортизола.', icon: 'HeartPulse' },
-                    { time: '00:35', title: 'План на завтра + Ритуалы', desc: 'Разгрузка головы, Магний, Вечерний Манифест, Сон.', icon: 'Moon' }
+                    { time: '10:30', title: 'Подъём', desc: 'Стабилизация циркадных ритмов. Вода + Свет.', icon: 'Compass' },
+                    { time: '10:45', title: 'Дыхание + Манифест', desc: 'Box Breathing + Активация дофаминовой гравитации.', icon: 'Flame' },
+                    { time: '11:10', title: 'Завтрак + Языковой спринт', desc: '[Якорь: Еда] Испанский / Китайский с транслитерацией.', icon: 'Utensils', highlight: true },
+                    { time: '11:35', title: 'Daily English Practice', desc: 'Речевой разогрев мозга.', icon: 'Globe', highlight: true },
+                    { time: '12:05', title: 'Project Management Спринт', desc: '[Якорь: Конец English] 60 минут глубокой работы.', icon: 'BrainCircuit', highlight: true },
+                    { time: '13:05', title: 'ЛЕГАЛЬНЫЙ БЛОК: Перезагрузка', desc: 'Охлаждение коры. YouTube, соцсети без чувства вины.', icon: 'Coffee', special: true },
+                    { time: '13:45', title: 'Контент + Obsidian', desc: 'Запись смыслов, инсайтов, структуры рилсов.', icon: 'Edit3', highlight: true },
+                    { time: '16:00', title: 'Подопечные + Личная тренировка', desc: 'Основной рабочий блок. Тренировка встраивается в окна.', icon: 'Dumbbell' },
+                    { time: '23:00', title: 'Кардио дома', desc: '[Якорь: Конец работы] 20-25 минут сжигания кортизола.', icon: 'HeartPulse' },
+                    { time: '00:35', title: 'Разгрузка + Вечерний Манифест', desc: 'Магний, закрытие гештальтов дня, сон в 01:00.', icon: 'Moon' }
                 ];
-            };
+            }, [mode]);
 
             return (
-                <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-white uppercase">Распорядок</h1>
-                    <TipCard text="Распорядок — это не клетка, это рельсы. Если сошел с графика, просто посмотри на часы и делай текущий блок." iconName="List" />
-                    <div className="max-w-4xl mx-auto bg-gradient-to-b from-[#121212]/80 to-[#0a0a0a]/85 backdrop-blur-3xl p-6 md:p-12 border border-[#262626]/60 rounded-[2rem] shadow-2xl shadow-black">
-                        <div className="relative border-l-[3px] border-[#262626]/60 ml-2 md:ml-8 space-y-10 py-4">
-                            {getTimeline().map((item, i) => (
-                                <div key={i} className="relative pl-8 md:pl-14 group">
-                                    <div className="absolute -left-[18px] md:-left-[19.5px] top-1 w-8 h-8 rounded-full border-[3px] border-[#262626]/80 bg-[#0a0a0a] flex items-center justify-center text-slate-500 group-hover:border-amber-400 group-hover:text-amber-400 transition-all duration-300">
-                                        <IconBase iconName={item.icon} size={14} />
+                <div class="space-y-6 animate-in">
+                    <h1 class="text-3xl md:text-5xl font-black uppercase tracking-tighter">Распорядок</h1>
+                    <TipCard text="График — это не клетка, это рельсы. Если сошел с курса, посмотри на часы и выполняй текущий блок." iconName="List"/>
+                    <div class="max-w-3xl mx-auto premium-glass p-4 sm:p-8 rounded-[2rem]">
+                        <div class="relative border-l-2 border-white/5 ml-2 sm:ml-6 space-y-8 py-2">
+                            {timeline.map((item, idx) => (
+                                <div key={idx} class="relative pl-6 sm:pl-10 group">
+                                    <div class={`absolute -left-[13px] top-1.5 w-6 h-6 rounded-full border-2 bg-[#0a0a0a] flex items-center justify-center transition-colors ${item.special ? 'border-amber-500 text-amber-400' : 'border-white/10 text-slate-500'}`}>
+                                        <IconBase iconName={item.icon} size={12}/>
                                     </div>
-                                    <div className={`p-5 rounded-2xl border border-transparent transition-all duration-300 ${item.special ? 'bg-amber-500/5 border-amber-500/20 shadow-[0_0_20px_rgba(251,191,36,0.05)]' : item.highlight ? 'bg-[#1a1a1a]/40 border-[#262626]/40 shadow-inner' : 'hover:bg-[#121212]/60'}`}>
-                                        <span className="font-mono font-bold text-xs tracking-widest px-2.5 py-1 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">{item.time}</span>
-                                        <h3 className="text-lg md:text-2xl font-black mt-3 uppercase tracking-tight text-white">{item.title}</h3>
-                                        <p className="text-sm md:text-base text-slate-400 font-medium mt-2 leading-relaxed">{item.desc}</p>
+                                    <div class={`p-4 rounded-2xl border transition-all ${item.special ? 'bg-amber-500/5 border-amber-500/20' : item.highlight ? 'bg-white/5 border-white/5' : 'border-transparent'}`}>
+                                        <span class="font-mono text-xs font-black px-2 py-0.5 rounded bg-amber-400/10 text-amber-400">{item.time}</span>
+                                        <h3 class="text-base md:text-xl font-black uppercase tracking-tight mt-2 text-white">{item.title}</h3>
+                                        <p class="text-xs md:text-sm text-slate-400 font-medium mt-1 leading-relaxed">{item.desc}</p>
                                     </div>
                                 </div>
                             ))}
@@ -907,28 +568,29 @@
             );
         };
 
+        // Вкладка: ОБУЧЕНИЕ
         const LearningView = ({ state, saveDailyNote, addLanguagePhrase }) => {
-            const [localNote, setLocalNote] = useState({ pm: '', eng: '', lang: '' });
-
+            const [pm, setPm] = useState(''); const [eng, setEng] = useState(''); const [lang, setLang] = useState('');
             return (
-                <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-white uppercase">Обучение</h1>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className={`${THEME.panel}`}>
-                            <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-6 uppercase tracking-tight"><IconBase iconName="BookOpen" className="text-amber-500" size={24}/> <span>Смыслы PM</span></h2>
-                            <TextInput placeholder="Инсайт, архитектурное решение сегодня..." value={localNote.pm} onChange={(v) => setLocalNote(p => ({...p, pm: v}))} multiline />
-                            <Button variant="secondary" className="w-full mt-4" onClick={() => { saveDailyNote(localNote.pm, 'PM'); setLocalNote(p => ({...p, pm: ''})); }}>В буфер OS</Button>
+                <div class="space-y-6 animate-in">
+                    <h1 class="text-3xl md:text-5xl font-black uppercase tracking-tighter">Обучение</h1>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="premium-glass p-5 rounded-3xl space-y-4">
+                            <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="BookOpen" className="text-amber-500" size={18}/><span>Смыслы PM</span></h2>
+                            <TextInput placeholder="Зафиксируй системный или архитектурный инсайт спринта..." value={pm} onChange={setPm} multiline />
+                            <Button variant="secondary" className="w-full" onClick={() => { saveDailyNote(pm, 'PM'); setPm(''); }}>Отправить в буфер OS</Button>
                         </div>
-                        <div className={`${THEME.panel}`}>
-                            <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-6 uppercase tracking-tight"><IconBase iconName="Globe" className="text-yellow-500" size={24}/> <span>English Sprint</span></h2>
-                            <TextInput placeholder="Новая идиома, речевой оборот..." value={localNote.eng} onChange={(v) => setLocalNote(p => ({...p, eng: v}))} multiline />
-                            <Button variant="secondary" className="w-full mt-4" onClick={() => { saveDailyNote(localNote.eng, 'ENG'); setLocalNote(p => ({...p, eng: ''})); }}>В буфер OS</Button>
+                        <div class="premium-glass p-5 rounded-3xl space-y-4">
+                            <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="Globe" className="text-yellow-500" size={18}/><span>English Sprint</span></h2>
+                            <TextInput placeholder="Новая устойчивая идиома или разобранный речевой оборот..." value={eng} onChange={setEng} multiline />
+                            <Button variant="secondary" className="w-full" onClick={() => { saveDailyNote(eng, 'ENG'); setEng(''); }}>Отправить в буфер OS</Button>
                         </div>
-                        <div className={`${THEME.panel} lg:col-span-2`}>
-                            <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-4 uppercase tracking-tight"><IconBase iconName="Utensils" className="text-amber-400" size={24}/> <span>Языковой Спринт за завтраком</span></h2>
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <TextInput placeholder="Фраза на испанском или китайском (с русской транслитерацией)..." value={localNote.lang} onChange={(v) => setLocalNote(p => ({...p, lang: v}))} className="flex-1" />
-                                <Button onClick={() => { addLanguagePhrase(localNote.lang); setLocalNote(p => ({...p, lang: ''})); }}>Закрепить</Button>
+                        <div class="premium-glass p-5 rounded-3xl lg:col-span-2 space-y-4">
+                            <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="Utensils" className="text-amber-400" size={18}/><span>Языковой Спринт (Завтрак)</span></h2>
+                            <p class="text-xs text-slate-400 font-medium">Spanish / Mandarin с обязательной русской транслитерацией произношения.</p>
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <TextInput placeholder="Пример: Nǐ hǎo (Ни хао) — Привет..." value={lang} onChange={setLang} />
+                                <Button className="sm:w-44 flex-shrink-0" onClick={() => { addLanguagePhrase(lang); setLang(''); }}>Сохранить</Button>
                             </div>
                         </div>
                     </div>
@@ -936,244 +598,322 @@
             );
         };
 
-        const BodyView = ({ state, update, toggleTask }) => {
-            return (
-                <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-white uppercase">Тело</h1>
-                    <TipCard text="Для эксперта в нутрициологии и фитнесе тело — это манифестация бренда. Каждая тренировка — инвестиция в дофаминовый статус личности." iconName="Dumbbell" />
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className={`${THEME.panel}`}>
-                            <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-6 uppercase tracking-tight"><IconBase iconName="Activity" className="text-amber-400" size={24}/> <span>Физическая нагрузка</span></h2>
-                            <div className="space-y-4">
-                                <CheckItem anchor="Расписание" checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label="Личная силовая тренировка + Аудиокнига" subLabel="Синхронизация физического и ментального роста." />
-                                <CheckItem anchor="Конец работы" checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Домашнее кардио (20-25 мин)" subLabel="Сжигание кортизола перед сном." />
-                            </div>
-                        </div>
-                        <div className={`${THEME.panel}`}>
-                            <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-6 uppercase tracking-tight"><IconBase iconName="Battery" className="text-yellow-600" size={24}/> <span>Восстановление системы</span></h2>
-                            <div className="space-y-6">
-                                <NumericInput label="Сон за прошлую ночь (цель: 7.5ч)" min={0} max={15} step={0.5} value={state.energyMetrics.sleep} onChange={(v) => update('energyMetrics', {sleep: v})} />
-                                <NumericInput label="Индекс готовности ЦНС к нагрузкам" hint="1-10" min={1} max={10} value={state.energyMetrics.readiness} onChange={(v) => update('energyMetrics', {readiness: v})} />
-                            </div>
+        // Вкладка: ТЕЛО
+        const BodyView = ({ state, update, toggleTask }) => (
+            <div class="space-y-6 animate-in">
+                <h1 class="text-3xl md:text-5xl font-black uppercase tracking-tighter">Тело</h1>
+                <TipCard text="Для профессионала в нутрициологии тело — это физическое подтверждение философии бренда. Инвестируй в ЦНС и мышечный корсет." iconName="Dumbbell"/>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="premium-glass p-5 rounded-3xl space-y-4">
+                        <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="Activity" className="text-amber-400" size={18}/><span>Физическая интеграция</span></h2>
+                        <div class="space-y-2">
+                            <CheckItem anchor="Окна ведения" checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label="Личная силовая тренировка + Аудиокнига" />
+                            <CheckItem anchor="Конец работы" checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Домашнее кардио перед едой (20 мин)" />
                         </div>
                     </div>
+                    <div class="premium-glass p-5 rounded-3xl space-y-6">
+                        <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="Battery" className="text-yellow-500" size={18}/><span>Восстановление ресурсов ЦНС</span></h2>
+                        <NumericInput label="Продолжительность сна за ночь (цель: 7.5ч)" min={0} max={15} step={0.5} value={state.energyMetrics.sleep} onChange={(v) => update('energyMetrics', {sleep: v})} />
+                        <NumericInput label="Индекс готовности к силовым нагрузкам" hint="1-10" min={1} max={10} value={state.energyMetrics.readiness} onChange={(v) => update('energyMetrics', {readiness: v})} />
+                    </div>
                 </div>
-            );
-        };
+            </div>
+        );
 
+        // Вкладка: КОНТЕНТ
         const ContentView = ({ state, update, saveDailyNote }) => {
             const [idea, setIdea] = useState('');
             return (
-                <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-white uppercase">Контент</h1>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className={`${THEME.panel}`}>
-                            <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-4 uppercase tracking-tight"><IconBase iconName="PenTool" className="text-amber-500" size={24}/> <span>Мысль дня для Obsidian</span></h2>
-                            <TextInput placeholder="Пиши структуру рилса, концепт или манифест без жесткой редактуры..." value={idea} onChange={setIdea} multiline />
-                            <Button className="w-full mt-4" onClick={() => { saveDailyNote(idea, 'CONTENT'); setIdea(''); }}>Записать идею</Button>
+                <div class="space-y-6 animate-in">
+                    <h1 class="text-3xl md:text-5xl font-black uppercase tracking-tighter">Контент</h1>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="premium-glass p-5 rounded-3xl space-y-4">
+                            <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="PenTool" className="text-amber-500" size={18}/><span>Буфер смыслов Obsidian</span></h2>
+                            <TextInput placeholder="Запиши концепт рилса, манифест или структуру поста без жесткой редактуры..." value={idea} onChange={setIdea} multiline />
+                            <Button className="w-full" onClick={() => { saveDailyNote(idea, 'CONTENT'); setIdea(''); }}>Зафиксировать смысл</Button>
                         </div>
-                        <div className={`${THEME.panel}`}>
-                            <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-4 uppercase tracking-tight"><IconBase iconName="TrendingUp" className="text-yellow-500" size={24}/> <span>Медиа-лестница проекта</span></h2>
-                            <div className="space-y-2">
-                                {['Концепт зафиксирован', 'Скрипт Obsidian написан', 'Материал снят', 'Монтаж завершен', 'Контент опубликован'].map((step, i) => (
-                                    <div key={i} className={`p-4 rounded-xl border border-[#262626]/60 cursor-pointer flex justify-between items-center ${state.contentLadder >= i ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 shadow-inner' : 'bg-[#0f0f0f]/40 border-[#262626]/40 text-slate-500'}`} onClick={() => update('contentLadder', state.contentLadder === i ? i - 1 : i)}>
-                                        <span className="font-bold">{i+1}. {step}</span>
-                                        {state.contentLadder >= i && <IconBase iconName="CheckCircle2" size={18} />}
-                                    </div>
-                                ))}
-                            </div>
+                        <div class="premium-glass p-5 rounded-3xl space-y-3">
+                            <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="TrendingUp" className="text-yellow-500" size={18}/><span>Медиа-лестница проекта</span></h2>
+                            {['Смысл пойман в буфер', 'Скрипт развернут в Obsidian', 'Черновой видеоматериал снят', 'Пост-продакшн завершен', 'Контент опубликован в сеть'].map((step, idx) => (
+                                <div key={idx} className={`p-4 rounded-2xl border transition-all cursor-pointer flex justify-between items-center ${state.contentLadder >= idx ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-black/20 border-white/5 text-slate-500'}`} onClick={() => update('contentLadder', state.contentLadder === idx ? idx - 1 : idx)}>
+                                    <span class="text-xs font-black uppercase tracking-wide">{idx+1}. {step}</span>
+                                    {state.contentLadder >= idx && <IconBase iconName="CheckCircle2" size={16}/>}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
             );
         };
 
+        // Подкомпонент: Интерактивный Дыхательный Тренажер (Изолированное и исправленное состояние)
+        const BreathingTimer = ({ type = 'morning', onComplete }) => {
+            const [isActive, setIsActive] = useState(false);
+            const [timeElapsed, setTimeElapsed] = useState(0);
+            const TOTAL_SEC = 180;
+
+            const [phase, setPhase] = useState('Готов?');
+            const [secLeft, setSecLeft] = useState(0);
+            const [pulseScale, setPulseScale] = useState(1);
+
+            useEffect(() => {
+                let timer = null;
+                if (isActive && timeElapsed < TOTAL_SEC) {
+                    timer = setInterval(() => {
+                        setTimeElapsed(p => {
+                            const next = p + 1;
+                            AudioEngine.playTick();
+                            return next;
+                        });
+                    }, 1000);
+                } else if (timeElapsed >= TOTAL_SEC && isActive) {
+                    setIsActive(false);
+                    AudioEngine.playSuccess();
+                    triggerHaptic([60, 40, 60]);
+                    if (onComplete) onComplete();
+                }
+                return () => clearInterval(timer);
+            }, [isActive, timeElapsed, onComplete]);
+
+            useEffect(() => {
+                if (!isActive) return;
+                const cycle = timeElapsed % (type === 'morning' ? 16 : 10);
+
+                if (type === 'morning') {
+                    if (cycle < 4) {
+                        if (cycle === 0) AudioEngine.playPhaseChange();
+                        setPhase('Вдох'); setSecLeft(4 - cycle); setPulseScale(1.4);
+                    } else if (cycle < 8) {
+                        if (cycle === 4) AudioEngine.playPhaseChange();
+                        setPhase('Задержка'); setSecLeft(8 - cycle); setPulseScale(1.4);
+                    } else if (cycle < 12) {
+                        if (cycle === 8) AudioEngine.playPhaseChange();
+                        setPhase('Выдох'); setSecLeft(12 - cycle); setPulseScale(1);
+                    } else {
+                        if (cycle === 12) AudioEngine.playPhaseChange();
+                        setPhase('Задержка'); setSecLeft(16 - cycle); setPulseScale(1);
+                    }
+                } else {
+                    if (cycle < 4) {
+                        if (cycle === 0) AudioEngine.playPhaseChange();
+                        setPhase('Вдох'); setSecLeft(4 - cycle); setPulseScale(1.3);
+                    } else {
+                        if (cycle === 4) AudioEngine.playPhaseChange();
+                        setPhase('Выдох'); setSecLeft(10 - cycle); setPulseScale(1);
+                    }
+                }
+            }, [timeElapsed, isActive, type]);
+
+            const curMin = Math.floor((TOTAL_SEC - timeElapsed) / 60);
+            const curSec = ((TOTAL_SEC - timeElapsed) % 60).toString().padStart(2, '0');
+
+            return (
+                <div class="bg-black/30 border border-white/5 p-6 rounded-3xl flex flex-col items-center justify-center relative min-h-[380px]">
+                    <div class="absolute top-4 left-4 text-[10px] font-mono font-black text-amber-400 bg-amber-400/5 px-2.5 py-1 rounded border border-amber-400/10 uppercase">
+                        {type === 'morning' ? 'Box 4-4-4-4' : 'Vagus Relax 4-6'}
+                    </div>
+                    <div class="absolute top-4 right-4 text-xs font-mono font-black text-slate-400 bg-white/5 px-2.5 py-1 rounded">
+                        {curMin}:{curSec}
+                    </div>
+
+                    <div class="relative w-40 h-40 flex items-center justify-center my-6">
+                        <div class="absolute inset-0 rounded-full bg-amber-500/5 blur-2xl transition-transform duration-1000" style={{ transform: `scale(${pulseScale * 1.3})` }}></div>
+                        <div class="w-24 h-24 rounded-full border-2 border-amber-500/30 bg-black/80 flex flex-col items-center justify-center shadow-2xl transition-transform duration-1000" style={{ transform: `scale(${pulseScale})` }}>
+                            <span class="text-3xl font-mono font-black text-amber-400">{isActive ? secLeft : '—'}</span>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-black uppercase text-white tracking-wide h-8">{phase}</h3>
+                    <p class="text-[11px] text-slate-500 text-center max-w-xs mt-1 mb-6 leading-relaxed">
+                        {type === 'morning' ? 'Синхронизация полушарий мозга. Аудио-метроном активен.' : 'Глубокий тормозящий выдох для полного сброса кортизола ЦНС.'}
+                    </p>
+
+                    <Button variant={isActive ? 'secondary' : 'primary'} class="w-full max-w-[200px] text-xs uppercase" onClick={() => { triggerHaptic(10); setIsActive(!isActive); }} icon={isActive ? Pause : Play}>
+                        {isActive ? 'Пауза' : timeElapsed > 0 ? 'Продолжить' : 'Запуск'}
+                    </Button>
+                </div>
+            );
+        };
+
+        // Вкладка: РИТУАЛЫ (Восстановленная страница)
         const RitualsView = ({ state, toggleTask }) => (
-            <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-white uppercase">Ритуалы</h1>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className={`${THEME.panel} border-t-4 border-t-amber-400`}>
-                        <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="Compass" className="text-amber-400" size={24}/> <span>Утренний Алгоритм</span></h2>
-                        <BreathingTimer type="morning" onComplete={() => toggleTask('breathAm', 'spirit', 15, true)} />
+            <div class="space-y-6 animate-in">
+                <h1 class="text-3xl md:text-5xl font-black uppercase tracking-tighter">Ритуалы</h1>
+                <TipCard text="Ритуалы — это твои психологические якоря. Если день развалился полностью, просто выполни утренний и вечерний ритуал. Это сохранит контроль и идентичность." iconName="Anchor" />
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="premium-glass p-5 rounded-[2rem] border-t-2 border-t-amber-500 space-y-4">
+                        <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="Compass" className="text-amber-400" size={18}/><span>Утренний алгоритм ЦНС</span></h2>
+                        <BreathingTimer type="morning" onComplete={() => toggleTask('breathAm', 'spirit', 15)} />
                         <ManifestReader type="AM" />
                     </div>
-                    <div className={`${THEME.panel} border-t-4 border-t-yellow-600`}>
-                        <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="Moon" className="text-yellow-600" size={24}/> <span>Вечерний Алгоритм</span></h2>
-                        <BreathingTimer type="evening" onComplete={() => toggleTask('breathPm', 'spirit', 15, true)} />
+                    <div class="premium-glass p-5 rounded-[2rem] border-t-2 border-t-yellow-600 space-y-4">
+                        <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="Moon" className="text-yellow-600" size={18}/><span>Вечерний детокс разума</span></h2>
+                        <BreathingTimer type="evening" onComplete={() => toggleTask('breathPm', 'spirit', 15)} />
                         <ManifestReader type="PM" />
                     </div>
                 </div>
             </div>
         );
 
+        // Вкладка: ПРОГРЕСС И СТОИЧЕСКАЯ КАРТА ЖИЗНИ
         const ProgressView = ({ state, update }) => {
             const { xp, level, categories, returnRate } = state.stats;
             const progressToNext = xp % 200;
             const progressPercent = (progressToNext / 200) * 100;
 
+            const mementoMoriData = useMemo(() => {
+                const birth = new Date(BIRTH_DATE);
+                const today = new Date();
+                const diffTime = Math.abs(today - birth);
+                const livedWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+                const totalWeeks = TARGET_YEARS * 52;
+                return { lived: livedWeeks, total: totalWeeks, pct: Math.min(100, Math.floor((livedWeeks / totalWeeks) * 100)) };
+            }, []);
+
             const Bar = ({ label, val, col }) => (
-                <div className="bg-[#0f0f0f]/40 p-4 rounded-2xl border border-[#262626]/60">
-                    <div className="flex justify-between text-xs mb-2 font-black uppercase tracking-wider">
-                        <span className="text-slate-400">{label}</span>
-                        <span className="text-slate-200">{Math.floor(val)}%</span>
+                <div class="bg-black/30 p-4 rounded-2xl border border-white/5">
+                    <div class="flex justify-between text-xs mb-2 font-black uppercase tracking-wider">
+                        <span class="text-slate-400">{label}</span>
+                        <span class="text-slate-200 font-mono">{Math.floor(val)}%</span>
                     </div>
-                    <div className="h-2 w-full bg-[#050505] rounded-full border border-[#262626]/40 overflow-hidden">
-                        <div className={`h-full ${col} shadow-[0_0_10px_currentColor]`} style={{ width: `${val}%` }}></div>
+                    <div class="h-1.5 w-full bg-black/60 rounded-full border border-white/5 overflow-hidden">
+                        <div class={`h-full ${col}`} style={{ width: `${val}%` }}></div>
                     </div>
                 </div>
             );
 
             return (
-                <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-white uppercase">Прогресс</h1>
-                    <div className={`${THEME.panel} bg-gradient-to-br from-[#121212]/80 to-[#0a0a0a]/80 p-6 md:p-12`}>
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-                            <div className="flex items-center gap-6">
-                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-600 flex items-center justify-center border border-white/10 shadow-2xl shadow-amber-500/20">
-                                    <IconBase iconName="Trophy" className="text-[#0a0a0a]" size={28} />
-                                </div>
+                <div class="space-y-6 animate-in">
+                    <h1 class="text-3xl md:text-5xl font-black uppercase tracking-tighter">Прогресс</h1>
+                    
+                    {/* Графическая сетка Memento Mori */}
+                    <div class="premium-glass p-5 md:p-6 rounded-[2rem] space-y-4">
+                        <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                            <span class="text-xs font-black uppercase tracking-widest text-slate-300 flex items-center gap-1.5"><IconBase iconName="Anchor" size={14} className="text-amber-500"/>Memento Mori // Ресурс Жизни Павла Маркова</span>
+                            <span class="font-mono text-xs text-amber-400 font-black">Прожито: {mementoMoriData.pct}%</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed font-medium">Каждый пиксель ниже — одна неделя твоей жизни из 80-летнего лимита. Твой текущий год жизни подсвечен неоновой пульсацией. Время необратимо.</p>
+                        
+                        {/* Матричный рендеринг сетки недель */}
+                        <div class="flex flex-wrap gap-[2px] p-3 bg-black/40 rounded-xl border border-white/5 max-h-[140px] overflow-y-auto hide-scrollbar select-none">
+                            {Array.from({ length: mementoMoriData.total }).map((_, i) => {
+                                let bg = 'bg-white/5 border border-white/5'; // Будущее
+                                if (i < mementoMoriData.lived) bg = 'bg-neutral-800'; // Прошлое
+                                if (i >= mementoMoriData.lived && i < mementoMoriData.lived + 52) bg = 'bg-amber-400 shadow-[0_0_6px_#fbbf24]'; // Настоящий год
+                                return <div key={i} class={`mori-dot ${bg}`} />;
+                            })}
+                        </div>
+                        <div class="flex justify-between items-center text-[10px] font-mono text-slate-500 font-bold uppercase">
+                            <span>Рождение: 14.03.1997</span>
+                            <span>Лимит: {mementoMoriData.total} недель</span>
+                        </div>
+                    </div>
+
+                    {/* Панель Уровней */}
+                    <div class="premium-glass p-5 md:p-6 rounded-[2rem]">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                            <div class="flex items-center gap-4">
+                                <div class="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-yellow-600 flex items-center justify-center text-black font-black"><IconBase iconName="Trophy" size={24}/></div>
                                 <div>
-                                    <h2 className="text-2xl md:text-5xl font-black text-white tracking-tight">Уровень {level}</h2>
-                                    <p className="text-amber-400 font-black tracking-widest uppercase text-xs mt-1">Каста Суверенов</p>
+                                    <h2 class="text-2xl font-black text-white">Уровень {level}</h2>
+                                    <p class="text-amber-400 font-mono font-black text-[10px] uppercase tracking-widest">Каста Суверенов</p>
                                 </div>
                             </div>
-                            <div className="bg-[#050505] px-6 py-4 rounded-2xl border border-[#262626]/60 text-xl font-mono font-black text-white shadow-inner">
-                                {xp} <span className="text-sm text-amber-500">XP</span>
-                            </div>
+                            <div class="bg-black/50 px-5 py-2.5 rounded-xl border border-white/5 font-mono font-black text-white">{xp} <span class="text-xs text-amber-500">XP</span></div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-[11px] uppercase tracking-wider text-slate-500 font-bold"><span>Прогресс ядра</span><span class="font-mono text-amber-400">{progressToNext} / 200 XP</span></div>
+                            <div class="h-3 bg-black rounded-full p-0.5 border border-white/5"><div class="h-full bg-gradient-to-r from-amber-500 to-yellow-500 rounded-full transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div></div>
                         </div>
 
-                        <div className="space-y-3 mb-8">
-                            <div className="flex justify-between text-xs uppercase tracking-wider text-slate-400">
-                                <span>До следующего уровня</span>
-                                <span className="text-amber-400 font-mono">{progressToNext} / 200</span>
-                            </div>
-                            <div className="h-4 bg-[#050505] rounded-full border border-[#262626]/60 p-0.5">
-                                <div className="h-full bg-gradient-to-r from-amber-600 to-yellow-500 rounded-full" style={{ width: `${progressPercent}%` }}></div>
-                            </div>
-                        </div>
-
-                        <h3 className="text-sm font-black text-slate-300 uppercase tracking-widest mb-4">Баланс идентичностей</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6 pt-6 border-t border-white/5">
                             <Bar label="Атлет (Тело)" val={categories.body} col="bg-amber-500" />
                             <Bar label="Структура (PM)" val={categories.pm} col="bg-yellow-500" />
                             <Bar label="Мир (English)" val={categories.english} col="bg-orange-400" />
                             <Bar label="Создатель (Контент)" val={categories.content} col="bg-amber-300" />
                             <Bar label="Дух (Ритуалы)" val={categories.spirit} col="bg-yellow-600" />
-                            <Bar label="Return Rate (Стабильность)" val={returnRate} col="bg-gradient-to-r from-amber-400 to-yellow-500" />
+                            <Bar label="Return Rate (Стабильность)" val={returnRate} col="bg-gradient-to-r from-amber-400 to-yellow-500 shadow-[0_0_10px_rgba(251,191,36,0.3)]" />
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <NumericInput label="Уровень ежедневной энергии" min={1} max={10} value={state.energyMetrics.energy} onChange={(v) => update('energyMetrics', {energy: v})} />
-                        <NumericInput label="Уровень психологического стресса" min={1} max={10} color="red" value={state.energyMetrics.stress} onChange={(v) => update('energyMetrics', {stress: v})} />
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <NumericInput label="Суточный уровень энергии" min={1} max={10} value={state.energyMetrics.energy} onChange={(v) => update('energyMetrics', {energy: v})} />
+                        <NumericInput label="Уровень стресса ЦНС" min={1} max={10} color="red" value={state.energyMetrics.stress} onChange={(v) => update('energyMetrics', {stress: v})} />
                     </div>
                 </div>
             );
         };
 
+        // Вкладка: ЭКСПОРТ И БЭКАПЫ
         const ToolsExportView = ({ state, copyToClipboard, setState, showToast }) => {
-            const [sunoInput, setSunoInput] = useState('');
-
-            const buildObsidianData = () => {
+            const [suno, setSuno] = useState('');
+            const getObsidianTemplate = () => {
                 const e = state.energyMetrics, t = state.dailyTasks, logs = state.taskTimestamps;
-                const notesStr = state.notes.savedDaily.length > 0 ? state.notes.savedDaily.map(n => n).join('\n') : '- Нет записей';
+                const notesStr = state.notes.savedDaily.length > 0 ? state.notes.savedDaily.join('\n') : '- Нет записей';
                 const langStr = state.languagePhrases.length > 0 ? state.languagePhrases.map(l => `- ${l}`).join('\n') : '- Нет записей';
                 const goalsStr = state.strategicGoals.map(g => `- ${g.title}: ${Math.floor((g.current/g.target)*100)}% (${g.current}/${g.target} ${g.unit})`).join('\n');
-                
-                return `# Суверенный Лог Дня: ${new Date().toLocaleDateString('ru-RU')}\n\n` +
-                       `## Метрики ЦНС\n- Сон: ${e.sleep}ч\n- Энергия: ${e.energy}/10\n- Стресс: ${e.stress}/10\n- Готовность: ${e.readiness}/10\n\n` +
-                       `## Статус Векторов Развития\n${goalsStr}\n\n` +
-                       `## Хронология и Таймстампы Действий\n` +
-                       `- [${logs.waterAm || '—'}] Вода + Свет + Проветривание\n` +
-                       `- [${logs.morningCharge || '—'}] Микро-зарядка\n` +
-                       `- [${logs.breathAm || '—'}] Box Breathing (Утро)\n` +
-                       `- [${logs.prayerAm || '—'}] Утренний сверх-манифест\n` +
-                       `- [${logs.english || '—'}] English Speaking Practice\n` +
-                       `- [${logs.pm || '—'}] Project Management Спринт\n` +
-                       `- [${logs.body || '—'}] Личная силовая тренировка\n` +
-                       `- [${logs.cardio || '—'}] Домашнее кардио\n` +
-                       `- [${logs.breathPm || '—'}] Дыхание на ночь\n` +
-                       `- [${logs.prayerPm || '—'}] Вечерний сверх-манифест\n\n` +
-                       `## Зафиксированные инсайты дня\n${notesStr}\n\n` +
-                       `## Микро-Языки (Завтрак)\n${langStr}\n\n` +
-                       `## Вечерний разбор по фреймворку\n- Триумф дня:\n- Что замедлило:\n- Вектор оптимизации:`;
+                return `# Суверенный Лог Дня: ${new Date().toLocaleDateString('ru-RU')}\n\n## Метрики ЦНС\n- Сон: ${e.sleep}ч\n- Энергия: ${e.energy}/10\n- Стресс: ${e.stress}/10\n- Готовность: ${e.readiness}/10\n\n## Стратегические Векторы\n${goalsStr}\n\n## Хронология Дисциплины\n- [${logs.waterAm || '—'}] Вода + Свет\n- [${logs.morningCharge || '—'}] Зарядка\n- [${logs.breathAm || '—'}] Box Breathing (AM)\n- [${logs.prayerAm || '—'}] Unrenний Манифест\n- [${logs.english || '—'}] English practice\n- [${logs.pm || '—'}] PM Deep Work\n- [${logs.body || '—'}] Силовая сессия\n- [${logs.cardio || '—'}] Домашнее кардио\n- [${logs.breathPm || '—'}] Дыхание (PM)\n- [${logs.prayerPm || '—'}] Вечерний Манифест\n\n## Буфер Инсайтов\n${notesStr}\n\n## Микро-Языки\n${langStr}`;
             };
 
-            const downloadObsidianFile = () => {
-                const text = buildObsidianData();
-                const blob = new Blob([text], { type: 'text/markdown;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                const dateStr = new Date().toISOString().split('T')[0];
-                link.href = url;
-                link.setAttribute("download", `${dateStr}_Markov_OS.md`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                showToast("Файл .md для Obsidian успешно скачан 💾");
+            const downloadFile = () => {
+                const blob = new Blob([getObsidianTemplate()], { type: 'text/markdown;charset=utf-8;' });
+                const url = URL.createObjectURL(blob); const link = document.createElement("a");
+                link.href = url; link.setAttribute("download", `${new Date().toISOString().split('T')[0]}_Markov_OS.md`);
+                document.body.appendChild(link); link.click(); document.body.removeChild(link);
+                showToast("Файл .md успешно скачан в твой Obsidian Vault 💾");
             };
 
-            const runBackupExport = () => {
+            const runBackup = () => {
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
-                const dlAnchor = document.createElement('a');
-                const dateStr = new Date().toISOString().split('T')[0];
-                dlAnchor.setAttribute("href", dataStr);
-                dlAnchor.setAttribute("download", `Markov_OS_Core_${dateStr}.json`);
-                document.body.appendChild(dlAnchor);
-                dlAnchor.click();
-                dlAnchor.remove();
-                showToast("Слепок ядра OS заархивирован JSON 🔐");
+                const a = document.createElement('a'); a.setAttribute("href", dataStr);
+                a.setAttribute("download", `Markov_OS_Core_${new Date().toISOString().split('T')[0]}.json`);
+                document.body.appendChild(a); a.click(); a.remove();
+                showToast("Ядро бэкапа JSON выгружено локально 🔐");
             };
 
-            const runBackupImport = (event) => {
-                if(event.target.files.length === 0) return;
-                const reader = new FileReader();
-                reader.readAsText(event.target.files[0], "UTF-8");
-                reader.onload = e => {
+            const runRestore = (e) => {
+                if(e.target.files.length === 0) return;
+                const r = new FileReader(); r.readAsText(e.target.files[0], "UTF-8");
+                r.onload = evt => {
                     try {
-                        const parsed = JSON.parse(e.target.result);
-                        if (parsed.stats && parsed.dailyTasks) {
-                            setState(parsed);
-                            showToast("Ядро восстановлено. База данных обновлена. ⚡");
-                        }
-                    } catch (err) { showToast("Ошибка импорта данных", true); }
+                        const p = JSON.parse(evt.target.result);
+                        if (p.stats && p.dailyTasks) { setState(p); showToast("Ядро OS успешно восстановлено! ⚡"); }
+                    } catch (err) { showToast("Ошибка парсинга бэкапа", true); }
                 };
             };
 
             return (
-                <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
-                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-white uppercase">Экспорт</h1>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className={`${THEME.panel}`}>
-                            <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="Download" className="text-amber-500" size={24}/> <span>Obsidian Синхронизация</span></h2>
-                            <p className="text-sm text-slate-400 mb-6">Сборка автоматического структурированного файла дневника с поминутными таймстампами твоих действий.</p>
-                            <div className="flex gap-2">
-                                <Button variant="primary" className="flex-1 text-xs uppercase" onClick={() => copyToClipboard(buildObsidianData())}>Копировать</Button>
-                                <Button variant="secondary" className="flex-1 text-xs uppercase" onClick={downloadObsidianFile}>Скачать .md</Button>
+                <div class="space-y-6 animate-in">
+                    <h1 class="text-3xl md:text-5xl font-black uppercase tracking-tighter">Экспорт</h1>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="premium-glass p-5 rounded-3xl space-y-4">
+                            <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="Download" className="text-amber-500" size={18}/><span>Obsidian Vault Sync</span></h2>
+                            <p class="text-xs text-slate-400 leading-relaxed">Генерация монолитного дневного отчета с поминутными таймстампами закрытия привычек для твоей базы знаний Obsidian.</p>
+                            <div class="flex gap-2">
+                                <Button variant="primary" className="flex-1 text-xs uppercase font-black" onClick={() => copyToClipboard(getObsidianTemplate())}>Копировать</Button>
+                                <Button variant="secondary" className="flex-1 text-xs uppercase font-black" onClick={downloadFile}>Скачать .md</Button>
                             </div>
                         </div>
-                        <div className={`${THEME.panel}`}>
-                            <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="Settings" className="text-orange-400" size={24}/> <span>Резервное копирование ядра</span></h2>
-                            <p className="text-sm text-slate-400 mb-6">Так как у нас нет внешних баз данных, сохраняй прогресс уровней, логов и идей SUNO в файл.</p>
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <Button variant="secondary" className="text-xs uppercase" onClick={runBackupExport}>Сохранить бэкап</Button>
-                                <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-[#1a1a1a] border border-[#333333]/60 text-amber-400 font-bold hover:bg-[#222222] cursor-pointer text-xs uppercase transition-all">
-                                    <span>Восстановить</span>
-                                    <input type="file" accept=".json" onChange={runBackupImport} className="hidden" />
+                        <div class="premium-glass p-5 rounded-3xl space-y-4">
+                            <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="Settings" className="text-orange-400" size={18}/><span>Архивация Локальной Базы</span></h2>
+                            <p class="text-xs text-slate-400 leading-relaxed">Экспорт и импорт полной базы данных приложения для предотвращения утери логов при чистке браузера.</p>
+                            <div class="flex gap-2">
+                                <Button variant="secondary" className="flex-1 text-xs uppercase font-black" onClick={runBackup}>Бэкап JSON</Button>
+                                <label class="flex-1 flex items-center justify-center px-4 py-3 rounded-2xl bg-white/5 border border-white/5 text-amber-400 font-bold hover:bg-white/10 cursor-pointer text-xs uppercase transition-all select-none">
+                                    <span>Импорт</span><input type="file" accept=".json" onChange={runRestore} class="hidden" />
                                 </label>
                             </div>
                         </div>
-                        <div className={`${THEME.panel} lg:col-span-2`}>
-                            <h2 className="text-2xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="Music" className="text-amber-400" size={24}/> <span>Банк творческих идей SUNO</span></h2>
-                            <div className="flex gap-4 mb-6">
-                                <TextInput placeholder="Концепт трека, музыкальный стиль, промпт..." value={sunoInput} onChange={(v) => setSunoInput(v)} className="flex-1" />
-                                <Button onClick={() => { if(sunoInput.trim()) { setState(p => ({...p, sunoIdeas: [...p.sunoIdeas, sunoInput]})); setSunoInput(''); showToast("Идея добавлена в банк."); } }}>Сохранить</Button>
+                        <div class="premium-glass p-5 rounded-3xl lg:col-span-2 space-y-4">
+                            <h2 class="text-base font-black uppercase tracking-wider text-white flex items-center gap-2"><IconBase iconName="Music" className="text-amber-400" size={18}/><span>Творческий Банк Идей SUNO</span></h2>
+                            <div class="flex flex-col sm:flex-row gap-2">
+                                <TextInput placeholder="Введи концепт трека, музыкальный промпт или стилевой хук..." value={suno} onChange={setSuno} />
+                                <Button onClick={() => { if(suno.trim()) { setState(p => ({...p, sunoIdeas: [...p.sunoIdeas, suno]})); setSuno(''); showToast("Промпт сохранен в банк."); } }}>Добавить</Button>
                             </div>
-                            {state.sunoIdeas.length > 0 && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-[#0a0a0a]/60 rounded-2xl border border-[#262626]/60">
-                                    {state.sunoIdeas.map((idea, i) => (
-                                        <div key={i} className="p-3 bg-[#1a1a1a]/90 rounded-xl border border-[#333333]/60 font-bold text-sm text-slate-300 flex items-center gap-2">
-                                            <IconBase iconName="Music" className="text-amber-500" size={16} /> <span>{idea}</span>
-                                        </div>
+                            {state.sunoIdeas && state.sunoIdeas.length > 0 && (
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-black/30 rounded-2xl border border-white/5 max-h-52 overflow-y-auto hide-scrollbar">
+                                    {state.sunoIdeas.map((id, i) => (
+                                        <div key={i} class="p-3 bg-white/5 rounded-xl text-xs font-bold text-slate-300 flex items-center gap-2 border border-white/5"><IconBase iconName="Music" className="text-amber-500" size={14}/><span>{id}</span></div>
                                     ))}
                                 </div>
                             )}
@@ -1183,15 +923,55 @@
             );
         };
 
-        const TextInput = ({ value, onChange, placeholder, multiline = false, className="" }) => {
-            const baseClasses = `w-full bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-2xl p-4 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 transition-all resize-none shadow-inner text-sm font-medium leading-relaxed ${className}`;
-            return multiline ? (
-                <textarea rows={3} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={baseClasses} />
-            ) : (
-                <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={baseClasses} />
+        // Вспомогательные листовые подкомпоненты
+        const ManifestReader = ({ type }) => {
+            const [open, setOpen] = useState(false); const d = MANIFESTS[type];
+            return (
+                <div class="border border-white/5 rounded-2xl bg-black/20 overflow-hidden transition-all duration-300">
+                    <button onClick={() => { triggerHaptic(10); setOpen(!open); }} class="w-full flex items-center justify-between p-4 text-left">
+                        <span class="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-2"><IconBase iconName="Flame" size={16} className="text-amber-500"/>{d.title}</span>
+                        <IconBase iconName="ChevronDown" size={18} className={`text-slate-500 transition-transform ${open?'rotate-180':''}`}/>
+                    </button>
+                    {open && (
+                        <div class="p-4 border-t border-white/5 bg-black/40 space-y-3">
+                            <p class="text-[10px] font-mono text-amber-500 uppercase tracking-widest leading-relaxed bg-amber-500/5 p-2 rounded border border-amber-500/10">{d.instruction}</p>
+                            {d.text.split('\n\n').map((p, i) => <p key={i} class="text-xs md:text-sm text-slate-300 leading-relaxed tracking-wide font-medium whitespace-pre-wrap">{p}</p>)}
+                        </div>
+                    )}
+                </div>
             );
         };
 
+        const CheckItem = ({ checked, onChange, label, subLabel, xpBadge, anchor, timeLog }) => (
+            <div class={`flex items-start gap-3 md:gap-4 p-4 md:p-5 rounded-2xl transition-all duration-300 cursor-pointer group border touch-manipulation min-h-[76px] relative overflow-hidden ${checked ? 'bg-amber-500/5 border-amber-500/30 shadow-[0_0_25px_rgba(251,191,36,0.08)]' : 'bg-[#0f0f0f]/40 border-white/5 hover:border-white/10 hover:bg-[#1a1a1a]/60'}`} onClick={onChange}>
+                <div class={`mt-0.5 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center border-[2.5px] transition-all duration-500 flex-shrink-0 relative z-10 ${checked ? 'bg-gradient-to-br from-yellow-400 to-amber-600 border-transparent text-black shadow-[0_0_20px_rgba(251,191,36,0.5)] scale-110' : 'border-slate-600 group-hover:border-amber-500/50'}`}>
+                    {checked && <IconBase iconName="Check" size={16} strokeWidth={4} />}
+                </div>
+                <div class="flex flex-col flex-1 justify-center relative z-10 min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        {anchor && <span class="text-amber-500 font-black text-[9px] uppercase tracking-widest flex items-center gap-1"><IconBase iconName="Anchor" size={10} /> [Якорь: {anchor}]</span>}
+                        {checked && timeLog && <span class="text-slate-500 font-mono text-[10px] bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">🕒 {timeLog}</span>}
+                    </div>
+                    <span class={`font-bold transition-colors duration-300 text-base md:text-lg leading-tight mt-1 ${checked ? 'text-slate-500 line-through decoration-amber-500/50' : 'text-slate-200'}`}>{label}</span>
+                    {subLabel && <span class={`text-xs md:text-sm mt-1.5 transition-colors font-medium leading-snug ${checked ? 'text-slate-600' : 'text-slate-400'}`}>{subLabel}</span>}
+                </div>
+            </div>
+        );
+
+        const TipCard = ({ text, title="Принцип системы", iconName = "Zap" }) => (
+            <div class="bg-gradient-to-r from-[#121212]/80 to-[#0f0f0f]/80 backdrop-blur-xl border border-white/5 rounded-2xl p-4 md:p-6 flex gap-4 md:gap-5 items-start relative overflow-hidden mb-6 shadow-md">
+                <div class="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-400 to-yellow-600"></div>
+                <div class="p-2.5 bg-amber-500/10 rounded-xl flex-shrink-0 border border-amber-500/20">
+                    <IconBase iconName={iconName} className="text-amber-400" size={20} />
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h4 class="text-[10px] md:text-xs font-black text-amber-400 uppercase tracking-widest mb-1.5 opacity-90">{title}</h4>
+                    <p class="text-sm md:text-base text-slate-300 leading-relaxed font-medium">{text}</p>
+                </div>
+            </div>
+        );
+
+        // Главный корневой оркестратор приложения
         function App() {
             const { state, setState, update, toggleTask, saveDailyNote, addLanguagePhrase, copyToClipboard, toast, showToast } = useAppState();
 
@@ -1206,24 +986,19 @@
                 { id: 'tools', icon: 'Settings', label: 'Экспорт' },
             ];
 
-            // Настройка динамических интеллектуальных фонов под выбранный режим дня
             useEffect(() => {
-                const modeGlows = {
-                    max: 'radial-gradient(circle at top, rgba(251,191,36,0.06) 0%, rgba(10,10,10,0) 60%)',
-                    norm: 'radial-gradient(circle at top, rgba(251,191,36,0.03) 0%, rgba(10,10,10,0) 50%)',
-                    min: 'radial-gradient(circle at top, rgba(239,68,68,0.05) 0%, rgba(10,10,10,0) 50%)',
-                    recovery: 'radial-gradient(circle at top, rgba(168,85,247,0.05) 0%, rgba(10,10,10,0) 50%)',
-                    saturday: 'radial-gradient(circle at top, rgba(99,102,241,0.06) 0%, rgba(10,10,10,0) 60%)',
-                    sunday: 'radial-gradient(circle at top, rgba(34,197,94,0.04) 0%, rgba(10,10,10,0) 50%)'
+                const bgGlows = {
+                    max: 'radial-gradient(circle at top, rgba(251,191,36,0.06) 0%, rgba(5,5,5,0) 60%)',
+                    norm: 'radial-gradient(circle at top, rgba(251,191,36,0.03) 0%, rgba(5,5,5,0) 50%)',
+                    min: 'radial-gradient(circle at top, rgba(239,68,68,0.05) 0%, rgba(5,5,5,0) 50%)',
+                    recovery: 'radial-gradient(circle at top, rgba(168,85,247,0.05) 0%, rgba(5,5,5,0) 50%)',
+                    saturday: 'radial-gradient(circle at top, rgba(99,102,241,0.06) 0%, rgba(5,5,5,0) 60%)',
+                    sunday: 'radial-gradient(circle at top, rgba(34,197,94,0.04) 0%, rgba(5,5,5,0) 50%)'
                 };
-                const activeGlow = modeGlows[state.currentMode] || modeGlows.norm;
-                const glowElement = document.getElementById('ambient-glow-layer');
-                if (glowElement) {
-                    glowElement.style.backgroundImage = activeGlow;
-                }
+                document.body.style.backgroundImage = bgGlows[state.currentMode] || bgGlows.norm;
             }, [state.currentMode]);
 
-            const currentContent = useMemo(() => {
+            const currentView = useMemo(() => {
                 switch (state.currentTab) {
                     case 'dashboard': return <DashboardView state={state} update={update} toggleTask={toggleTask} />;
                     case 'schedule': return <ScheduleView state={state} />;
@@ -1238,69 +1013,56 @@
             }, [state.currentTab, state, update, toggleTask, saveDailyNote, addLanguagePhrase, copyToClipboard, setState, showToast]);
 
             return (
-                <div className="min-h-screen bg-[#0a0a0a] text-slate-200 font-sans flex flex-col lg:flex-row overflow-x-hidden antialiased relative">
-                    
-                    {/* Слой адаптивного неонового фонового градиента */}
-                    <div id="ambient-glow-layer" class="fixed inset-0 pointer-events-none z-0 transition-all duration-1000 ease-in-out"></div>
-
-                    {/* Текстовые уведомления */}
-                    <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] transition-all duration-500 ease-out pointer-events-none w-[95%] md:w-auto max-w-lg ${toast.visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-10 scale-95'}`}>
-                        <div className="px-4 py-3.5 rounded-2xl font-bold bg-[#121212]/95 text-white border border-amber-500/50 shadow-2xl backdrop-blur-2xl flex items-center gap-3">
-                            <IconBase iconName="Sparkles" className="text-amber-400" size={20} />
-                            <span className="text-sm md:text-base">{toast.msg}</span>
+                <div class="min-h-screen bg-transparent text-slate-200 font-sans flex flex-col lg:flex-row overflow-x-hidden relative">
+                    {/* Боковое меню (Desktop Sidebar) */}
+                    <aside class="hidden lg:flex flex-col w-72 xl:w-80 bg-[#121212]/50 backdrop-blur-3xl border-r border-white/5 p-6 h-screen sticky top-0 z-40">
+                        <div class="mb-10 select-none">
+                            <h1 class="text-4xl font-black tracking-widest text-white uppercase">Markov<br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-amber-500 font-serif italic">OS</span></h1>
+                            <p class="text-[10px] text-slate-500 font-black tracking-widest mt-1.5 uppercase flex items-center gap-1.5">Hyper-Elite v15 Ultimate <span class="w-2 h-2 bg-amber-400 rounded-full animate-pulse shadow-[0_0_8px_#fbbf24]"></span></p>
                         </div>
-                    </div>
-
-                    {/* Боковое меню (Десктоп) */}
-                    <aside className="hidden lg:flex flex-col w-[280px] xl:w-[320px] bg-[#121212]/60 backdrop-blur-3xl border-r border-[#262626]/60 p-6 h-screen sticky top-0 z-40 shadow-2xl">
-                        <div className="mb-10 relative select-none">
-                            <h1 className="text-4xl font-black tracking-widest text-white">MARKOV<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500">OS</span></h1>
-                            <p className="text-[10px] text-slate-400 font-black tracking-widest mt-2 uppercase flex items-center gap-2">Hyper-Elite v13 <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></span></p>
-                        </div>
-                        <nav className="flex-1 space-y-1 overflow-y-auto hide-scrollbar">
-                            {TABS.map(tab => {
-                                const active = state.currentTab === tab.id;
+                        <nav class="flex-1 space-y-1 overflow-y-auto hide-scrollbar">
+                            {TABS.map(t => {
+                                const act = state.currentTab === t.id;
                                 return (
                                     <button 
-                                        key={tab.id} onClick={() => { triggerHaptic(10); update('currentTab', tab.id); }}
-                                        className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-sm uppercase tracking-wider ${active ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-inner' : 'text-slate-500 hover:text-slate-200'}`}
+                                        key={t.id} onClick={() => { triggerHaptic(10); update('currentTab', t.id); }}
+                                        class={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-xs uppercase tracking-wider ${act ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-inner' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
                                     >
-                                        <IconBase iconName={tab.icon} size={18} />
-                                        <span className="truncate">{tab.label}</span>
+                                        <IconBase iconName={t.icon} size={16} />
+                                        <span class="truncate">{t.label}</span>
                                     </button>
-                                )
+                                );
                             })}
                         </nav>
                     </aside>
 
-                    {/* Главная рабочая область */}
-                    <main className="flex-1 p-4 md:p-10 lg:p-12 xl:p-16 w-full min-h-screen relative z-10 pb-24 lg:pb-12 overflow-hidden">
-                        <div className="max-w-[1200px] mx-auto w-full">
-                            {currentContent}
+                    {/* Главная контентная область */}
+                    <main class="flex-1 p-4 sm:p-8 md:p-10 lg:p-12 xl:p-16 w-full min-h-screen z-10 pb-24 lg:pb-12 overflow-hidden">
+                        <div class="max-w-[1100px] mx-auto w-full">
+                            {currentView}
                         </div>
                     </main>
 
-                    {/* Навигационное меню (Мобильные устройства) */}
-                    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[#121212]/90 backdrop-blur-3xl border-t border-[#262626]/60 flex overflow-x-auto hide-scrollbar z-50 px-1 py-1">
-                        {TABS.map(tab => {
-                            const active = state.currentTab === tab.id;
+                    {/* Меню навигации (Mobile iOS/Android) */}
+                    <nav class="lg:hidden fixed bottom-0 left-0 right-0 bg-[#121212]/90 backdrop-blur-3xl border-t border-white/5 flex overflow-x-auto hide-scrollbar z-50 px-1 pt-1.5 safe-bottom">
+                        {TABS.map(t => {
+                            const act = state.currentTab === t.id;
                             return (
                                 <button 
-                                    key={tab.id} onClick={() => { triggerHaptic(10); update('currentTab', tab.id); }}
-                                    className={`flex-1 flex flex-col items-center justify-center min-w-[68px] py-2 gap-1 transition-all ${active ? 'text-amber-400' : 'text-slate-500'}`}
+                                    key={t.id} onClick={() => { triggerHaptic(10); update('currentTab', t.id); }}
+                                    class={`flex-1 flex flex-col items-center justify-center min-w-[66px] py-1.5 gap-1 transition-all ${act ? 'text-amber-400' : 'text-slate-500'}`}
                                 >
-                                    <IconBase iconName={tab.icon} size={18} />
-                                    <span className="text-[8px] font-black uppercase tracking-widest truncate">{tab.label}</span>
+                                    <IconBase iconName={t.icon} size={16} />
+                                    <span class="text-[8px] font-black uppercase tracking-widest truncate max-w-full px-1">{t.label}</span>
                                 </button>
-                            )
+                            );
                         })}
                     </nav>
                 </div>
             );
         }
 
-        const rootElement = document.getElementById('root');
-        const root = ReactDOM.createRoot(rootElement);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
