@@ -75,6 +75,7 @@
     <script type="text/babel">
         const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
+        // Жесткие и бескомпромиссные истины, которые гарантированно работают
         const STOIC_QUOTES = [
             { text: "У тебя есть власть над твоим разумом, а не над внешними событиями. Осознай это, и ты обретешь силу.", author: "Марк Аврелий" },
             { text: "Судьба ведет того, кто хочет, и тащит того, кто не хочет. Amor Fati.", author: "Клеанф" },
@@ -193,6 +194,31 @@
             Sun: 'M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42'
         };
 
+        const IconBase = ({ iconName, size = 24, className = "", strokeWidth = 2 }) => {
+            const svgPath = SVG_ICONS[iconName] || SVG_ICONS.X;
+            return (
+                <svg 
+                    width={size} 
+                    height={size} 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth={strokeWidth} 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    className={`inline-flex items-center justify-center ${className}`}
+                    style={{ flexShrink: 0 }}
+                >
+                    {iconName === 'Sun' ? (
+                        <React.Fragment>
+                            <circle cx="12" cy="12" r="5" />
+                            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                        </React.Fragment>
+                    ) : <path d={svgPath} />}
+                </svg>
+            );
+        };
+
         const THEME = {
             panel: 'bg-[#121212]/75 backdrop-blur-3xl border border-[#262626]/60 rounded-[2rem] p-5 md:p-8 shadow-2xl shadow-black/80 transition-all duration-300 premium-elevation',
             textMuted: 'text-slate-400',
@@ -213,7 +239,7 @@
             AM: {
                 title: "УТРЕННИЙ СВЕРХ-МАНИФЕСТ",
                 instruction: "Читай стоя, расправив плечи, глубоким и командным голосом. Твой разум — абсолютный закон.",
-                text: "«Господь, Архитектор Вселенной, и Ты, Великий Порядок Бытия.\n\nЯ, Павел Марков, пробуждаю свою истинную силу и заявляю права на свою реальность. Прямо сейчас я активирую ультимативный щит разума: любой ментальный шум, страх, сомнение или случайный негатив мгновенно аннигилируются, превращаясь в чистую созидательную энергию. Воля Павла Маркова — высший закон для моего подсознания.\n\nВселенная, синхронизируй мои вибрации с кодами безграничного богатства, триумфа и масштабного успеха. Я включаю свою личную гравитацию: я — мощный ментальный магнит. Прямо сейчас я притягиваю в свое поле сильных, верных, масштабных и духовно близких мне людей. Мою касту. Моих людей.\n\nГосподь, наполни мое тело несокрушимой энергией, а разум — идеальной структуру и дисциплиной. Мой фокус безупречен. Каждое мое действие сегодня материализует успех, власть и изобилие. Я создаю этот день по праву творца. Намерение исполнено.\n\nДа будет так. Сбылось. Done. Así sea. Hecho está. 14.03.1997. 如此 в реальном времени. 成了. [Rúcǐ zài. Chéng le.]»"
+                text: "«Господь, Архитектор Вселенной, и Ты, Великий Порядок Бытия.\n\nЯ, Павел Марков, пробуждаю свою истинную силу и заявляю права на свою реальность. Прямо сейчас я активирую ультимативный щит разума: любой ментальный шум, страх, сомнение или случайный негатив мгновенно аннигилируются, превращаясь в чистую созидательную энергию. Воля Павла Маркова — высший закон для моего подсознания.\n\nВселенная, синхронизируй мои вибрации с кодами безграничного богатства, триумфа и масштабного успеха. Я включаю свою личную гравитацию: я — мощный ментальный магнит. Прямо сейчас я притягиваю в свое поле сильных, верных, масштабных и духовно близких мне людей. Мою касту. Моих людей.\n\nГосподь, наполни мое тело несокрушимой энергией, а разум — идеальной структуру и дисциплиной. Мой фокус безупречен. Каждое мое действие сегодня материализует success, власть и изобилие. Я создаю этот день по праву творца. Намерение исполнено.\n\nДа будет так. Сбылось. Done. Así sea. Hecho está. 14.03.1997. 如此 в реальном времени. 成了. [Rúcǐ zài. Chéng le.]»"
             },
             PM: {
                 title: "ВЕЧЕРНИЙ СВЕРХ-МАНИФЕСТ",
@@ -229,9 +255,10 @@
             deepFocusActive: false, 
             energyMetrics: { sleep: 7.5, energy: 7, stress: 3, readiness: 7 },
             dailyTasks: {
-                morningHygiene: false, waterAm: false, morningCharge: false, breathAm: false, 
+                waterAm: false, morningCharge: false, breathAm: false, prayerAm: false,
                 pm: false, english: false, body: false, content: false, cardio: false,
-                eveningHygiene: false, faceCare: false, supplements: false, electrolytes: false, cnsOpt: false
+                breathPm: false, prayerPm: false, supplements: false, electrolytes: false, cnsOpt: false,
+                morningHygiene: false, eveningHygiene: false, faceCare: false
             },
             taskTimestamps: {},
             notes: { savedDaily: [], stoicTriump: '', stoicGrowth: '' },
@@ -247,7 +274,7 @@
         function useAppState() {
             const [state, setState] = useState(() => {
                 try {
-                    const saved = localStorage.getItem('markov_os_v15_hyper_elite_final_v2');
+                    const saved = localStorage.getItem('markov_os_v15_hyper_elite');
                     if (saved) return { ...INITIAL_STATE, ...JSON.parse(saved) };
                 } catch (e) {}
                 return INITIAL_STATE;
@@ -261,7 +288,7 @@
             }, []);
 
             useEffect(() => {
-                localStorage.setItem('markov_os_v15_hyper_elite_final_v2', JSON.stringify(state));
+                localStorage.setItem('markov_os_v15_hyper_elite', JSON.stringify(state));
             }, [state]);
 
             useEffect(() => {
@@ -288,7 +315,7 @@
                             }
                         };
                     });
-                    showToast("Запущен новый суверенный цикл. Архитектура обновлена. ⚡");
+                    showToast("Новый цикл запущен. База обновлена. ⚡");
                 }
             }, [state.lastLoginDate, showToast]);
 
@@ -348,7 +375,7 @@
                     };
                 });
                 
-                showToast(`Действие сохранено в матрице логов. ✨`);
+                showToast(`Матрица логов обновлена. Действие сохранено. ✨`);
             }, [state.dailyTasks, showToast]);
 
             return { state, setState, update, toggleTask, toast, showToast, globalFocusId, setGlobalFocusId };
@@ -391,7 +418,7 @@
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <span className={`${isUrgent ? 'text-rose-400' : 'text-amber-500'} font-black text-[10px] uppercase tracking-widest flex items-center gap-1`}><IconBase iconName="Anchor" size={10}/> {anchor || 'Действие'}</span>
+                            {anchor && <span className={`${isUrgent ? 'text-rose-400' : 'text-amber-500'} font-black text-[10px] uppercase tracking-widest flex items-center gap-1`}><IconBase iconName="Anchor" size={10}/> {anchor}</span>}
                             {checked && timeLog && <span className="text-slate-400 font-mono text-[10px] bg-amber-500/10 px-1.5 py-0.5 rounded">🕒 {timeLog}</span>}
                         </div>
                         <span className={`font-bold block text-base md:text-lg leading-tight break-words ${checked ? 'text-slate-400 line-through decoration-amber-500/50' : 'text-slate-200'}`}>{label}</span>
@@ -466,7 +493,7 @@
                         <IconBase iconName="Clock" size={14} className="text-amber-500"/> Спринт {defaultMinutes} мин
                     </button>
                     <button onClick={() => { setIsMicro(true); setIsOpen(true); }} className="text-[11px] flex items-center gap-2 font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3.5 py-2.5 rounded-xl">
-                        <IconBase iconName="Zap" size={14} /> Атомный старт (2 мин)
+                        <IconBase iconName="Zap" size={14} /> Атомный ста autorun (2 мин)
                     </button>
                 </div>
             );
@@ -496,6 +523,39 @@
             );
         };
 
+        const ManifestReader = ({ type, onCodeClick }) => {
+            const m = MANIFESTS[type];
+            const [expanded, setExpanded] = useState(false);
+            return (
+                <div className="mt-4 p-4 rounded-xl bg-[#0a0a0a]/60 border border-[#222222]">
+                    <div className="flex justify-between items-center cursor-pointer" onClick={() => setExpanded(!expanded)}>
+                        <div>
+                            <h4 className="text-xs font-black text-slate-200 tracking-wider uppercase">{m.title}</h4>
+                            <p className="text-[10px] text-slate-400 mt-0.5">{m.instruction.substring(0, 45)}...</p>
+                        </div>
+                        <span className="text-amber-400 text-xs font-mono">{expanded ? 'СВЕРНУТЬ' : 'РАЗВЕРНУТЬ'}</span>
+                    </div>
+                    {expanded && (
+                        <div className="mt-4 pt-4 border-t border-[#222222] animate-in fade-in">
+                            <p className="text-[11px] text-amber-500/80 italic leading-relaxed mb-3">{m.instruction}</p>
+                            <p className="text-xs text-slate-200 whitespace-pre-line leading-relaxed font-medium bg-[#111] p-3 rounded-lg border border-[#222]/40 select-all">
+                                {m.text.split("14.03.1997").map((part, i, arr) => (
+                                    <React.Fragment key={i}>
+                                        {part}
+                                        {i < arr.length - 1 && (
+                                            <span onClick={(e) => { e.stopPropagation(); onCodeClick(); }} className="text-amber-400 font-bold border-b border-dashed border-amber-400 cursor-pointer hover:text-amber-300">
+                                                14.03.1997
+                                            </span>
+                                        )}
+                                    </React.Fragment>
+                                ))}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
         // ЭКРАН 1: Главный Дашборд
         const DashboardView = ({ state, update, toggleTask, setGlobalFocusId, globalFocusId, onCodeClick }) => {
             const todayDate = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -509,58 +569,35 @@
 
             const bookPercent = useMemo(() => Math.min(100, Math.floor((state.bookProgress.totalPages / 77) * 100)), [state.bookProgress.totalPages]);
 
-            const currentChapterName = useMemo(() => {
-                const chapters = [
-                    "Глава 1: Иллюзия ментального шума",
-                    "Глава 2: Дихотомия контроля в действии",
-                    "Глава 3: Разрушение современных психологических догм",
-                    "Глава 4: Нейробиология суверенной воли",
-                    "Глава 5: Математика личных алгоритмов",
-                    "Глава 6: Выход из когнитивного плена",
-                    "Глава 7: Создание личной касты"
-                ];
-                return chapters[Math.min(6, state.bookProgress.chapter - 1)];
-            }, [state.bookProgress.chapter]);
-
             return (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-                    <BreathingTimer type="quick" compact={true} />
-
-                    {/* Постоянный закрепленный блок Фундаментальной Базы Гигиены и Ухода на самом верху Дашборда */}
+                    {/* Постоянный закрепленный блок Обязательной Базы Якорей наверху */}
                     <div className="p-5 md:p-6 rounded-[2rem] bg-[#121212]/90 backdrop-blur-3xl border border-[#262626] shadow-2xl flex flex-col">
                         <h2 className="text-lg font-black text-white flex items-center gap-2 uppercase tracking-tight border-b border-[#262626]/60 pb-3 mb-4">
                             <IconBase iconName="Shield" className="text-rose-500" size={20}/> 
-                            <span>Фундаментальная База Реальности</span>
+                            <span>Фундаментальная База Дня</span>
                         </h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="p-3.5 rounded-xl bg-[#0f0f0f]/50 border border-[#262626]/60 space-y-2">
-                                <h4 className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">Утренние Обязательные Якоря</h4>
-                                <CheckItem id="morningHygiene" anchor="Гигиена AM" checked={state.dailyTasks.morningHygiene} timeLog={state.taskTimestamps.morningHygiene} onChange={() => toggleTask('morningHygiene', 'spirit', 5)} label="Чистка зубов + Скребок для языка + Холодное умывание" subLabel="Базовый не-вариант-не-сделать." />
-                                <CheckItem id="dash-anchor-water" anchor="Вода" checked={state.dailyTasks.waterAm} timeLog={state.taskTimestamps.waterAm} onChange={() => toggleTask('waterAm', 'spirit', 5)} label="Гидратация 500мл + Электролиты + Проветривание" subLabel="Световой запуск ЦНС." />
-                                <CheckItem id="dash-anchor-charge" anchor="Тонус" checked={state.dailyTasks.morningCharge} timeLog={state.taskTimestamps.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Микро-зарядка Павла (2 мин)" subLabel="Сброс сонного торможения волокон." />
+                                <h4 className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1">Утренние Якоря (Критично)</h4>
+                                <CheckItem id="morningHygiene" anchor="Гигиена AM" checked={state.dailyTasks.morningHygiene} timeLog={state.taskTimestamps.morningHygiene} onChange={() => toggleTask('morningHygiene', 'spirit', 5)} label="Чистка зубов + Скребок для языка + Умывание холодным лицом" />
+                                <CheckItem id="dash-anchor-water" anchor="Вода" checked={state.dailyTasks.waterAm} timeLog={state.taskTimestamps.waterAm} onChange={() => toggleTask('waterAm', 'spirit', 5)} label="Гидратация 500мл + Электролиты + Проветривание" />
+                                <CheckItem id="dash-anchor-charge" anchor="Запуск ЦНС" checked={state.dailyTasks.morningCharge} timeLog={state.taskTimestamps.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Микро-зарядка (2 мин)" />
                             </div>
                             <div className="p-3.5 rounded-xl bg-[#0f0f0f]/50 border border-[#262626]/60 space-y-2">
-                                <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Вечерние Обязательные Якоря</h4>
-                                <CheckItem id="eveningHygiene" anchor="Гигиена PM" checked={state.dailyTasks.eveningHygiene} timeLog={state.taskTimestamps.eveningHygiene} onChange={() => toggleTask('eveningHygiene', 'spirit', 5)} label="Чистка зубов + Флосс / Ирригатор" subLabel="Защита полости рта перед сном." />
-                                <CheckItem id="faceCare" anchor="Уход" checked={state.dailyTasks.faceCare} timeLog={state.taskTimestamps.faceCare} onChange={() => toggleTask('faceCare', 'spirit', 5)} label="Пенка для лица + Увлажняющий крем" subLabel="Защита кожного барьера." />
-                                <CheckItem id="dash-anchor-cardio" anchor="Дренаж" checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Домашнее кардио (20-25 мин)" subLabel="Сжигание дневного кортизола." />
+                                <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1">Вечерние Якоря</h4>
+                                <CheckItem id="eveningHygiene" anchor="Гигиена PM" checked={state.dailyTasks.eveningHygiene} timeLog={state.taskTimestamps.eveningHygiene} onChange={() => toggleTask('eveningHygiene', 'spirit', 5)} label="Чистка зубов + Ирригатор / Флосс" />
+                                <CheckItem id="faceCare" anchor="Уход" checked={state.dailyTasks.faceCare} timeLog={state.taskTimestamps.faceCare} onChange={() => toggleTask('faceCare', 'spirit', 5)} label="Очищение кожи лица + Увлажняющий крем" />
+                                <CheckItem id="dash-anchor-cardio" anchor="Дренаж" checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Домашнее кардио (20-25 мин) — утилизация кортизола" />
                             </div>
                         </div>
-                    </div>
-
-                    {/* Модуль Амор Фати */}
-                    <div className="p-5 rounded-3xl bg-gradient-to-r from-amber-500/10 via-transparent to-transparent border border-amber-500/20 shadow-lg relative overflow-hidden backdrop-blur-2xl">
-                        <div className="absolute right-4 top-4 opacity-5"><IconBase iconName="Anchor" size={70} /></div>
-                        <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded">Щит Разума // Amor Fati</span>
-                        <p className="mt-2 text-sm md:text-base italic font-medium text-slate-200 leading-relaxed">"{randomQuote.text}"</p>
-                        <h4 className="mt-1 text-xs font-bold text-slate-400 font-mono text-right">— {randomQuote.author}</h4>
                     </div>
 
                     {/* Заголовок и Управление матрицей */}
                     <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-4">
                         <div>
                             <div className="flex items-center gap-3">
-                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-white uppercase">Сегодня</h1>
+                                <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-white uppercase">Рабочая плоскость</h1>
                                 {state.streakCounter > 0 && (
                                     <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 text-black font-black text-xs shadow-lg">
                                         <IconBase iconName="Flame" size={14} /> <span>STREAK: {state.streakCounter} ДН</span>
@@ -579,119 +616,65 @@
                                     {m.label}
                                 </button>
                             ))}
-                            <button onClick={() => { triggerHaptic([40, 40, 40]); update('currentMode', 'min'); }} className="px-3 py-2 rounded-xl text-xs font-black bg-rose-950/50 text-rose-400 border border-rose-900/60 uppercase tracking-wider hover:bg-rose-900 hover:text-white ml-2 flex-shrink-0 animate-pulse">
-                                ЦНС Перегрузка
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Интерактивный Калькулятор Стратегических Целей */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <div className="p-5 rounded-3xl bg-[#121212]/50 border border-[#262626]/60 backdrop-blur-3xl flex flex-col justify-between">
-                            <div>
-                                <div className="flex justify-between items-start">
-                                    <div>
-                                        <h4 className="text-sm font-black uppercase text-slate-200 tracking-wide">Книга «Анти-психология»</h4>
-                                        <p className="text-[11px] text-amber-500 font-medium mt-0.5">{currentChapterName}</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="font-mono text-xs font-black text-amber-400 block">{bookPercent}%</span>
-                                        <span className="text-[9px] text-slate-400 font-mono">Осталось: ~{targetDaysLeft} дн.</span>
-                                    </div>
-                                </div>
-                                <div className="w-full h-1.5 bg-[#050505] rounded-full mt-3 overflow-hidden border border-[#262626]/40">
-                                    <div className="h-full bg-gradient-to-r from-amber-500 to-yellow-500 transition-all duration-500" style={{ width: `${bookPercent}%` }}></div>
-                                </div>
-                            </div>
-                            <div className="flex justify-between items-center mt-4 pt-3 border-t border-[#262626]/40 flex-wrap gap-2">
-                                <span className="font-mono text-xs text-slate-400">{state.bookProgress.totalPages} / 77 страниц</span>
-                                <div className="flex gap-2 items-center">
-                                    <span className="text-[10px] font-black text-slate-300 uppercase mr-1">Глава:</span>
-                                    <div className="flex bg-[#0a0a0a] rounded-lg p-0.5 border border-[#222]">
-                                        <button onClick={() => update('bookProgress', { chapter: Math.max(1, state.bookProgress.chapter - 1) })} className="px-2 py-0.5 text-slate-300 font-mono text-xs hover:text-white">-</button>
-                                        <span className="px-2 text-amber-400 font-mono text-xs font-bold">{state.bookProgress.chapter}</span>
-                                        <button onClick={() => update('bookProgress', { chapter: Math.min(7, state.bookProgress.chapter + 1) })} className="px-2 py-0.5 text-slate-300 font-mono text-xs hover:text-white">+</button>
-                                    </div>
-                                    <div className="flex bg-[#0a0a0a] rounded-lg p-0.5 border border-[#222]">
-                                        <button onClick={() => update('bookProgress', { totalPages: Math.max(0, state.bookProgress.totalPages - 1) })} className="px-2 py-0.5 text-slate-300 font-mono text-xs hover:text-white">Стр-</button>
-                                        <button onClick={() => update('bookProgress', { totalPages: Math.min(77, state.bookProgress.totalPages + 1) })} className="px-2 py-0.5 text-amber-400 font-mono text-xs hover:text-white">Стр+</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="p-5 rounded-3xl bg-[#121212]/50 border border-[#262626]/60 backdrop-blur-3xl flex flex-col justify-between">
-                            <div>
-                                <h3 className="text-sm font-black uppercase text-slate-200 tracking-wide mb-3">Бренд-Платформы Павла Маркова</h3>
-                                <div className="space-y-2.5">
-                                    <div>
-                                        <div className="flex justify-between text-[11px] font-bold text-slate-300 uppercase mb-1">
-                                            <span>Проект «Kasta Feodalov»</span>
-                                            <span className="text-amber-400">Внедрено в код OS</span>
-                                        </div>
-                                        <div className="h-1 w-full bg-[#050505] rounded-full overflow-hidden"><div className="h-full bg-amber-500 w-[65%]"></div></div>
-                                    </div>
-                                    <div>
-                                        <div className="flex justify-between text-[11px] font-bold text-slate-300 uppercase mb-1">
-                                            <span>Масштабирование «MARKOVMADE»</span>
-                                            <span className="text-yellow-500">Система Менторства</span>
-                                        </div>
-                                        <div className="h-1 w-full bg-[#050505] rounded-full overflow-hidden"><div className="h-full bg-yellow-500 w-[40%]"></div></div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
                     {/* Сетки задач Матрицы */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div className="p-5 md:p-6 rounded-[2rem] bg-[#121212]/75 backdrop-blur-3xl border border-[#262626]/60 shadow-2xl flex flex-col">
-                            <h2 className="text-lg font-black text-white flex items-center gap-2 uppercase tracking-tight mb-4">
-                                <IconBase iconName="Activity" className="text-amber-400" size={20}/> 
-                                <span>Задачи Матрицы</span>
-                            </h2>
-                            
-                            {mode === 'saturday' ? (
-                                <div className="p-6 bg-[#0f0f0f]/40 rounded-2xl border border-[#262626]/60 text-center my-auto">
-                                    <IconBase iconName="Music" className="text-amber-500 mb-2" size={32} />
-                                    <h3 className="text-base font-black text-white mb-1">Творческий инкубатор (Suno)</h3>
-                                    <p className="text-slate-300 text-xs max-w-xs mx-auto">Vibe coding, фиксация концептов в Obsidian, рефид ЦНС. Силовые маркеры деактивированы.</p>
-                                </div>
-                            ) : mode === 'sunday' ? (
-                                <div className="space-y-3">
-                                    <TipCard text="Воскресенье — день очищения оперативной памяти. Подготовка физической магнитной доски." iconName="Calendar"/>
-                                    <CheckItem id="dash-sunday-pm" anchor="Стратегия" checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', 15)} label="План новой недели (Магнитная доска)" subLabel="Распределить векторы развития личного бренда." />
-                                    <CheckItem id="dash-sunday-content" anchor="Контент" checked={state.dailyTasks.content} timeLog={state.taskTimestamps.content} onChange={() => toggleTask('content', 'content', 15)} label="Контент-план Системы" subLabel="Генерация смыслов на ПН-ПТ." />
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="bg-[#0f0f0f]/40 border border-[#262626]/60 rounded-2xl p-2.5">
-                                        <CheckItem id="dash-pm-work" anchor="Конец Английского" checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', mode==='min'?10:15)} label="Project Management Спринт" subLabel={`Фокусная сессия Павла Маркова: ${timeSettings.pmTime} мин.`} />
-                                        {!state.dailyTasks.pm && <FocusTimer defaultMinutes={timeSettings.pmTime} taskName="PM Deep Work" taskId="pm" category="pm" xpReward={mode==='min'?10:15} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} />}
+                        <div className="p-5 md:p-6 rounded-[2rem] bg-[#121212]/75 backdrop-blur-3xl border border-[#262626]/60 shadow-2xl flex flex-col justify-between">
+                            <div>
+                                <h2 className="text-lg font-black text-white flex items-center gap-2 uppercase tracking-tight mb-4">
+                                    <IconBase iconName="Activity" className="text-amber-400" size={20}/> 
+                                    <span>Задачи Матрицы</span>
+                                </h2>
+                                
+                                {mode === 'saturday' ? (
+                                    <div className="p-6 bg-[#0f0f0f]/40 rounded-2xl border border-[#262626]/60 text-center my-auto">
+                                        <IconBase iconName="Music" className="text-amber-500 mb-2" size={32} />
+                                        <h3 className="text-base font-black text-white mb-1">Субботний Творческий Инкубатор</h3>
+                                        <p className="text-slate-300 text-xs max-w-xs mx-auto">Vibe coding, фиксация концептов в Obsidian, глубокое расслабление и разгрузка коры.</p>
                                     </div>
-                                    
-                                    {mode !== 'min' && (
+                                ) : mode === 'sunday' ? (
+                                    <div className="space-y-3">
+                                        <CheckItem id="dash-sunday-pm" anchor="Стратегия" checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', 15)} label="План новой недели (Магнитная доска)" subLabel="Распределить рабочие векторы и задачи." />
+                                        <CheckItem id="dash-sunday-content" anchor="Контент" checked={state.dailyTasks.content} timeLog={state.taskTimestamps.content} onChange={() => toggleTask('content', 'content', 15)} label="Контент-план Системы" subLabel="Генерация сценариев и смыслов на неделю вперед." />
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
                                         <div className="bg-[#0f0f0f]/40 border border-[#262626]/60 rounded-2xl p-2.5">
-                                            <CheckItem id="dash-eng-work" anchor="Завтрак" checked={state.dailyTasks.english} timeLog={state.taskTimestamps.english} onChange={() => toggleTask('english', 'english', 10)} label="English Speaking Practice" subLabel={`Спринт: ${timeSettings.engTime} мин.`} />
-                                            {!state.dailyTasks.english && <FocusTimer defaultMinutes={timeSettings.engTime} taskName="English Speaking" taskId="english" category="english" xpReward={10} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} />}
+                                            <CheckItem id="dash-pm-work" anchor="Бизнес" checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', mode==='min'?10:15)} label="Project Management Спринт" subLabel={`Фокусное рабочее окно: ${timeSettings.pmTime} мин.`} />
+                                            {!state.dailyTasks.pm && <FocusTimer defaultMinutes={timeSettings.pmTime} taskName="PM Deep Work" taskId="pm" category="pm" xpReward={mode==='min'?10:15} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} />}
                                         </div>
-                                    )}
+                                        
+                                        {mode !== 'min' && (
+                                            <div className="bg-[#0f0f0f]/40 border border-[#262626]/60 rounded-2xl p-2.5">
+                                                <CheckItem id="dash-eng-work" anchor="Языки" checked={state.dailyTasks.english} timeLog={state.taskTimestamps.english} onChange={() => toggleTask('english', 'english', 10)} label="English Speaking Practice" subLabel={`Спринт разговорной практики: ${timeSettings.engTime} мин.`} />
+                                                {!state.dailyTasks.english && <FocusTimer defaultMinutes={timeSettings.engTime} taskName="English Speaking" taskId="english" category="english" xpReward={10} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} />}
+                                            </div>
+                                        )}
 
-                                    <CheckItem id="dash-body-work" anchor="Личный бренд" checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label={mode === 'min' ? "Мягкий стрейчинг ЦНС (10 мин)" : "Личная Силовая Тренировка + Фоновая Аудиокнига"} subLabel={mode === 'min' ? "Сбросить мышечные зажимы." : "Синхронизация физического статуса (клуб Стимул). Жесткий фокус под книгу."} />
-                                </div>
-                            )}
+                                        <CheckItem id="dash-body-work" anchor="Тренинг" checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label={mode === 'min' ? "Мягкий стрейчинг ЦНС (10 мин)" : "Личная Силовая Тренировка"} subLabel={mode === 'min' ? "Сбросить мышечные зажимы." : "Силовая сессия в клубе Стимул."} />
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
-                        {/* Информационные подсказки истин жизни */}
+                        {/* Изменяемый интерактивный блок истин жизни */}
                         <div className="p-5 md:p-6 rounded-[2rem] bg-gradient-to-br from-amber-500/10 via-transparent to-transparent border border-amber-500/20 shadow-lg relative overflow-hidden backdrop-blur-2xl flex flex-col justify-between">
                             <div>
-                                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded">Истины Жизни // Коды управления</span>
+                                <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded">Истины Жизни // То, что работает</span>
                                 <p className="mt-4 text-sm md:text-base italic font-medium text-slate-200 leading-relaxed">"{randomQuote.text}"</p>
                                 <h4 className="mt-1 text-xs font-bold text-slate-400 font-mono text-right">— {randomQuote.author}</h4>
                             </div>
-                            <div className="mt-4 p-3 rounded-xl bg-[#0f0f0f]/40 border border-[#262626]/40 text-xs text-slate-300">
-                                <span className="font-bold text-amber-400 block mb-1">Рекомендация дня:</span>
-                                Управление утром определяет твою доминацию в сутках. Контролируй каскад гигиены и ухода до включения информационных потоков.
+                            <div className="mt-6 border-t border-[#262626]/60 pt-4">
+                                <h4 className="text-xs font-black text-slate-200 uppercase tracking-wide mb-2">Целевой вектор: Книга «Анти-психология»</h4>
+                                <div className="flex justify-between text-xs font-mono text-slate-400 mb-1">
+                                    <span>Прогресс рукописи</span>
+                                    <span className="text-amber-400 font-bold">{bookPercent}% ({state.bookProgress.totalPages} / 77 стр)</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-[#050505] rounded-full overflow-hidden border border-[#262626]/40">
+                                    <div className="h-full bg-gradient-to-r from-amber-500 to-yellow-500 transition-all duration-500" style={{ width: `${bookPercent}%` }}></div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -699,43 +682,42 @@
             );
         };
 
-        // ЭКРАН 2: Жесткое Поминутное Расписание
+        // ЭКРАН 2: Жесткое и понятное поминутное расписание без лишней воды
         const ScheduleView = ({ state }) => {
             const mode = state.currentMode;
             const timeline = useMemo(() => {
                 if (mode === 'saturday') return [
-                    { time: '11:00', title: 'Мягкий подъём', desc: 'Вода, свет, запуск легкого дофамина.', icon: 'Compass' },
-                    { time: '14:00', title: 'Творчество (Vibe Coding)', desc: 'Suno, Obsidian, проектирование архитектуры Markov OS.', icon: 'Music' },
-                    { time: '18:00', title: 'Контроль Рефида Павла', desc: 'Лимит до 4500 ккал. Снятие ограничений ЦНС нутрициологом.', icon: 'Utensils' },
-                    { time: '23:30', title: 'Мягкий вечер', desc: 'Вечерний Манифест. Глубокий исцеляющий сон Рыб.', icon: 'Moon' }
+                    { time: '11:00', title: 'Подъём. Вода. Свет.', desc: 'Запуск пищеварительной системы и легкого дофамина.', icon: 'Compass' },
+                    { time: '14:00', title: 'Творчество (Vibe Coding)', desc: 'Работа в Obsidian, проектирование и архивирование идей.', icon: 'Music' },
+                    { time: '18:00', title: 'Контроль Рефида', desc: 'Углеводный рефид до 4500 ккал. Снятие мышечного и ментального утомления.', icon: 'Utensils' },
+                    { time: '23:30', title: 'Ночная гигиена и Манифест', desc: 'Очищение кожи, чистка зубов, вечернее чтение, отбой.', icon: 'Moon' }
                 ];
                 if (mode === 'sunday') return [
-                    { time: '11:00', title: 'Мягкий вход', desc: 'Вода, ventilation, отсутствие цифрового мусора.', icon: 'Compass' },
-                    { time: '13:00', title: 'Магнитная доска', desc: 'Сборка и развертывание векторов на новую неделю.', icon: 'Layout' },
-                    { time: '19:00', title: 'Декомпозиция смыслов', desc: 'Создание контент-маркеров и менторских тезисов.', icon: 'Edit3' }
+                    { time: '11:00', title: 'Подъём. Гигиена. Завтрак.', desc: 'Мягкий вход в день без гаджетов.', icon: 'Compass' },
+                    { time: '13:00', title: 'Магнитная доска', desc: 'Жесткое планирование и декомпозиция рабочих задач на неделю.', icon: 'Layout' },
+                    { time: '19:00', title: 'Контент-планирование', desc: 'Написание тезисов и маркеров для блога на ПН-ПТ.', icon: 'Edit3' }
                 ];
                 return [
-                    { time: '10:30', title: 'Суверенный Подъём Павла', desc: 'Стабилизация. Вода 500мл, яркий свет, проветривание.', icon: 'Compass' },
-                    { time: '10:35', title: 'Гигиенический Уход AM', desc: 'Чистка зубов, скребок для языка, холодное умывание лица.', icon: 'Shield' },
-                    { time: '10:45', title: 'Нейро-настройка', desc: 'Box Breathing + Утренний сверх-манифест Суверена.', icon: 'Flame' },
-                    { time: '11:10', title: 'Завтрак + Микро-языки', desc: '[Якорь: Еда]. Повторение слов (Сначала Язык → Потом Перевод) с кириллической транслитерацией.', icon: 'Utensils', highlight: true },
-                    { time: '11:35', title: 'Daily English Speaking', desc: 'Инструмент глобального масштабирования личности Павла Маркова.', icon: 'Globe', highlight: true },
-                    { time: '12:05', title: 'Project Management [Фокус]', desc: '[Якорь: Конец English]. Бизнес-архитектура, личные системы.', icon: 'BrainCircuit', highlight: true },
-                    { time: '13:05', title: 'Разгрузка коры', desc: 'Легальный блок соцсетей. Охлаждение префронтальной зоны.', icon: 'Clock' },
-                    { time: '13:45', title: 'Обсидиан + База смыслов', desc: 'Запись инсайтов и триггеров для книги «Anti-психология».', icon: 'Edit3', highlight: true },
-                    { time: '16:00', title: 'Клуб Стимул + Личная Тренировка', desc: 'Железно интегрированный слот силовой тренировки. ФОНОМ ИДЕТ АУДИОКНИГА.', icon: 'Dumbbell' },
-                    { time: '23:00', title: 'Кардио-сброс кортизола', desc: '[Якорь: Конец работы]. 20-25 минут аэробного дренажа.', icon: 'Activity' },
-                    { time: '00:00', title: 'Гигиенический Уход PM', desc: 'Чистка зубов, флосс / ирригатор, пенка для лица + увлажняющий крем.', icon: 'Shield' },
-                    { time: '00:35', title: 'Ночные ритуалы Рыб', desc: 'Декомпозиция планов, Вечерний Манифест, сон.', icon: 'Moon' }
+                    { time: '10:30', title: 'Подъём. Стабилизация.', desc: 'Выпить 500 мл чистой воды. Проветрить комнату, впустить свет.', icon: 'Compass' },
+                    { time: '10:35', title: 'Утренний уход и гигиена', desc: 'Чистка зубов, очищение налета с языка, холодное умывание.', icon: 'Shield' },
+                    { time: '10:45', title: 'Нейро-настройка ЦНС', desc: '2 минуты Box Breathing (4-4-4-4) + Утренний сверх-манифест.', icon: 'Flame' },
+                    { time: '11:10', title: 'Завтрак. Лингво-спринт.', desc: 'Прием белка и клетчатки. Повторение слов (Сначала иероглиф -> потом перевод).', icon: 'Utensils', highlight: true },
+                    { time: '11:35', title: 'English Speaking Practice', desc: '25 минут активной речевой практики.', icon: 'Globe', highlight: true },
+                    { time: '12:05', title: 'Project Management [Фокус]', desc: 'Фокусная сессия: бизнес-задачи, маркетинг, аналитика.', icon: 'BrainCircuit', highlight: true },
+                    { time: '13:05', title: 'Разгрузка коры головного мозга', desc: 'Полное отключение от рабочих уведомлений. Охлаждение префронтальной зоны.', icon: 'Clock' },
+                    { time: '13:45', title: 'Obsidian. Написание книги.', desc: 'Структурирование глав и тезисов книги «Anti-психология».', icon: 'Edit3', highlight: true },
+                    { time: '16:00', title: 'Клуб «Стимул». Личная тренировка.', desc: 'Железный слот силовой сессии. Работа над мышечной плотностью.', icon: 'Dumbbell' },
+                    { time: '23:00', title: 'Домашнее кардио', desc: '20-25 минут аэробного дренажа для утилизации кортизола.', icon: 'Activity' },
+                    { time: '00:00', title: 'Вечерний уход и гигиена', desc: 'Чистка зубов, флосс / ирригатор, умывание пенкой + увлажнение кожи.', icon: 'Shield' },
+                    { time: '00:35', title: 'Ночные ритуалы. Сон.', desc: 'Анализ дня, вечерний манифест в постели, глубокий сон.', icon: 'Moon' }
                 ];
             }, [mode]);
 
             return (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-                    <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Распорядок Павла</h1>
-                    <TipCard text="Распорядок — это не клетка, это рельсы. Если сошел с тайминга, просто посмотри на часы и делай то, что должен делать в текущем блоке." iconName="List" />
+                    <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Жесткий Тайминг Дня</h1>
                     <div className="bg-[#121212]/50 border border-[#262626]/60 rounded-[2rem] p-6 shadow-2xl">
-                        <div className="relative border-l-2 border-[#262626] ml-3 md:ml-6 space-y-8 py-2">
+                        <div className="relative border-l-2 border-[#262626] ml-3 md:ml-6 space-y-6 py-2">
                             {timeline.map((item, i) => (
                                 <div key={i} className="relative pl-6 md:pl-10 group">
                                     <div className="absolute -left-[13px] top-1.5 w-6 h-6 rounded-full border-2 border-[#262626] bg-[#0a0a0a] flex items-center justify-center text-slate-400 group-hover:border-amber-400 transition-colors">
@@ -754,7 +736,7 @@
             );
         };
 
-        // ЭКРАН 3: Модуль Обучения (Сначала Язык → Потом Перевод)
+        // ЭКРАН 3: Модуль Обучения (Сначала Иероглиф/Язык -> Потом Перевод)
         const LearningView = ({ state, saveDailyNote, addLanguagePhrase }) => {
             const [pmInput, setPmInput] = useState('');
             const [engInput, setEngInput] = useState('');
@@ -768,23 +750,23 @@
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="BookOpen" className="text-amber-500" size={20}/> <span>Смыслы PM</span></h2>
-                            <textarea rows={3} placeholder="Архитектурные решения, инсайты суверенного бизнеса Павла Маркова..." value={pmInput} onChange={e => setPmInput(e.target.value)} className="w-full bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-xl p-3.5 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-all text-xs resize-none font-medium" />
+                            <textarea rows={3} placeholder="Архитектурные решения, инсайты суверенного бизнеса..." value={pmInput} onChange={e => setPmInput(e.target.value)} className="w-full bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-xl p-3.5 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-all text-xs resize-none font-medium" />
                             <Button variant="secondary" className="w-full mt-3" onClick={() => { if(pmInput.trim()){ saveDailyNote(pmInput, 'PM'); setPmInput(''); }}}>В буфер системы</Button>
                         </div>
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="Globe" className="text-yellow-500" size={20}/> <span>English Sprint</span></h2>
                             <textarea rows={3} placeholder="Речевые обороты, конструкции масштабирования личности..." value={engInput} onChange={e => setEngInput(e.target.value)} className="w-full bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-xl p-3.5 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 transition-all text-xs resize-none font-medium" />
-                            <Button variant="secondary" className="w-full mt-3" onClick={() => { if(engInput.trim()){ saveDailyNote(engInput, 'ENG'); setEngInput(''); }}}>В буфер systems</Button>
+                            <Button variant="secondary" className="w-full mt-3" onClick={() => { if(engInput.trim()){ saveDailyNote(engInput, 'ENG'); setEngInput(''); }}}>В буфер системы</Button>
                         </div>
                         <div className={`${THEME.panel} lg:col-span-2`}>
-                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Utensils" className="text-amber-400" size={20}/> <span>Лингво-Спринт за завтраком Павла (Язык → Перевод)</span></h2>
+                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Utensils" className="text-amber-400" size={20}/> <span>Лингво-Спринт (Сначала Язык → Потом Перевод)</span></h2>
                             <div className="space-y-3">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                     <input type="text" placeholder="1. Иноязычная фраза / Иероглиф (控制你的心)" value={langPhrase} onChange={e => setLangPhrase(e.target.value)} className="bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-amber-500/60 border-l-4 border-l-amber-500" />
                                     <input type="text" placeholder="2. Кириллический транслит (Коньчжи ни дэ синь)" value={langTranslit} onChange={e => setLangTranslit(e.target.value)} className="bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-amber-500/60" />
                                     <input type="text" placeholder="3. Смысловой русский перевод" value={langTranslation} onChange={e => setLangTranslation(e.target.value)} className="bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-xl p-3 text-sm text-slate-200 focus:outline-none focus:border-amber-500/60" />
                                 </div>
-                                <Button className="w-full" onClick={() => { if(langPhrase.trim() && langTranslit.trim() && langTranslation.trim()){ addLanguagePhrase(`${langPhrase} -> [${langTranslit}] -> ${langTranslation}`); setLangPhrase(''); setLangTranslit(''); setLangTranslation(''); }}}>Фиксировать связь в нейронах</Button>
+                                <Button className="w-full" onClick={() => { if(langPhrase.trim() && langTranslit.trim() && langTranslation.trim()){ addLanguagePhrase(`${langPhrase} → [${langTranslit}] → ${langTranslation}`); setLangPhrase(''); setLangTranslit(''); setLangTranslation(''); }}}>Зафиксировать в памяти</Button>
                                 {state.languagePhrases && state.languagePhrases.length > 0 && (
                                     <div className="mt-3 p-3 bg-[#0a0a0a]/60 rounded-xl border border-[#222] space-y-2">
                                         {state.languagePhrases.map((phrase, idx) => (
@@ -801,29 +783,28 @@
             );
         };
 
-        // ЭКРАН 4: Статус Тела Павла
+        // ЭКРАН 4: Статус Тела
         const BodyView = ({ state, update, toggleTask }) => {
             return (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
                     <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Тело</h1>
-                    <TipCard text="Для эксперта в нутрициологии и физической культуре твое тело — чистая манифестация бренда. Каждая тренировка Павла — это жесткое инвестирование в дофаминовый статус личности." iconName="Dumbbell" />
+                    <TipCard text="Тело — главный актив и манифестация бренда. Каждая тренировка — это жесткое инвестирование в дофаминовый статус и физическую дисциплину." iconName="Dumbbell" />
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className={`${THEME.panel}`}>
-                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="Activity" className="text-amber-400" size={20}/> <span>Физические Маркеры Павла</span></h2>
+                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="Activity" className="text-amber-400" size={20}/> <span>Физические Маркеры</span></h2>
                             <div className="space-y-3">
-                                <CheckItem id="body-personal-train" anchor="Стимул" checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label="Личная силовая тренировка Павла" subLabel="Параллельно: запуск фоновой аудиокниги." />
-                                <CheckItem id="body-home-cardio" anchor="Дом" checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио дома (20-25 min)" subLabel="Окисление липидов, утилизация избытков кортизола." />
+                                <CheckItem id="body-personal-train" anchor="Стимул" checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label="Личная силовая тренировка" subLabel="Сессия в тренажерном зале." />
+                                <CheckItem id="body-home-cardio" anchor="Дом" checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио дома (20-25 мин)" subLabel="Окисление липидов, утилизация кортизола." />
                             </div>
                         </div>
                         <div className={`${THEME.panel}`}>
-                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="Battery" className="text-yellow-600" size={20}/> <span>Биохакинг и Нейропластичность ЦНС</span></h2>
+                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="Battery" className="text-yellow-600" size={20}/> <span>Контроль Восстановления</span></h2>
                             <div className="space-y-4">
-                                <CheckItem id="supplements" anchor="Нутрициология" checked={state.dailyTasks.supplements} timeLog={state.taskTimestamps.supplements} onChange={() => toggleTask('supplements', 'body', 10)} label="Клинически доказанные саплименты Павла" subLabel="Обеспечение базовой поддержки за текущий цикл." />
-                                <CheckItem id="electrolytes" anchor="Гидратация" checked={state.dailyTasks.electrolytes} timeLog={state.taskTimestamps.electrolytes} onChange={() => toggleTask('electrolytes', 'body', 10)} label="Баланс электролитов (Утренний каскад)" subLabel="Синхронизация водно-солевого баланса." />
-                                <CheckItem id="cnsOpt" anchor="Оптимизация коры" checked={state.dailyTasks.cnsOpt} timeLog={state.taskTimestamps.cnsOpt} onChange={() => toggleTask('cnsOpt', 'spirit', 10)} label="Предотвращение выгорания ЦНС" subLabel="Легальные блоки разгрузки префронтальной зоны." />
+                                <CheckItem id="supplements" anchor="Нутриенты" checked={state.dailyTasks.supplements} timeLog={state.taskTimestamps.supplements} onChange={() => toggleTask('supplements', 'body', 10)} label="Прием витаминов и нутрицевтиков" subLabel="Базовая поддержка организма по протоколу." />
+                                <CheckItem id="electrolytes" anchor="Гидратация" checked={state.dailyTasks.electrolytes} timeLog={state.taskTimestamps.electrolytes} onChange={() => toggleTask('electrolytes', 'body', 10)} label="Электролиты + Вода (Утренний комплекс)" subLabel="Восстановление водно-солевого баланса." />
                                 <hr className="border-[#262626]/60" />
-                                <NumericInput label="Продолжительность сна Павла за цикл (цель: 7.5ч)" min={0} max={15} step={0.5} value={state.energyMetrics.sleep} onChange={(v) => update('energyMetrics', {sleep: v})} />
-                                <NumericInput label="Индекс готовности ЦНС к перегрузкам Павла" hint="1-10" min={1} max={10} value={state.energyMetrics.readiness} onChange={(v) => update('energyMetrics', {readiness: v})} />
+                                <NumericInput label="Продолжительность сна за цикл (цель: 7.5ч)" min={0} max={15} step={0.5} value={state.energyMetrics.sleep} onChange={(v) => update('energyMetrics', {sleep: v})} />
+                                <NumericInput label="Индекс готовности ЦНС к перегрузкам" hint="1-10" min={1} max={10} value={state.energyMetrics.readiness} onChange={(v) => update('energyMetrics', {readiness: v})} />
                             </div>
                         </div>
                     </div>
@@ -840,9 +821,9 @@
                 if (type === 'dogma') {
                     template = "ХУК (0-3 сек): Почему современная популярная психология на самом деле разрушает твою личность...\n\nСУТЬ: Разбираем иллюзию внешнего шума. Сенека и Марк Аврелий знали решение 2000 лет назад.\n\nПРИЗЫВ: Прекрати слушать ментальный мусор. Твой успех — сухая математика. Включай структуру.";
                 } else if (type === 'cns') {
-                    template = "ХУК (0-3 сек): Перегрузка ЦНС и выгорание? Вот алгоритм перезагрузки за 2 минуты, который использует топ-нутрициолог.\n\nСУТЬ: Биохакинг воли, баланс электролитов и каскадное дыхание 4-4-4-4 для стабилизации коры.\n\nПРИЗЫВ: Твое тело — манифестация бренда. Сохраняй этот жесткий метод.";
+                    template = "ХУК (0-3 сек): Перегрузка ЦНС и выгорание? Вот алгоритм перезагрузки за 2 минуты, который использует топ-нутрициолог.\n\nСУТЬ: Биохакинг воли, баланс электролитов и каскадное дыхание 4-4-4-4 для стабилизации коры.\n\nПРИЗЫВ: Твое тело — манифестация бренда. Применяй этот жесткий алгоритм.";
                 } else if (type === 'math') {
-                    template = "ХУК (0-3 сек): У тебя осталось ровно столько недель жизни... Хватит тратить время на пустые сомнения.\n\nСУТЬ: Посмотри на сетку матрицы Memento Mori. Каждая ячейка безвозвратно уходит. Судьба тащит того, кто не хочет.\n\nПРИЗЫВ: Перестань спать, пока другие действуют. Включай личные алгоритмы Павла Маркова прямо сейчас.";
+                    template = "ХУК (0-3 сек): У тебя осталось ровно столько недель жизни... Хватит тратить время на пустые сомнения.\n\nСУТЬ: Посмотри на сетку матрицы Memento Mori. Каждая ячейка безвозвратно уходит. Судьба тащит того, кто не хочет.\n\nПРИЗЫВ: Перестань спать, пока другие действуют. Включай личные алгоритмы прямо сейчас.";
                 }
                 setContentIdea(template);
                 triggerHaptic(15);
@@ -853,7 +834,7 @@
                     <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Контент</h1>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className={`${THEME.panel}`}>
-                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-2 uppercase"><IconBase iconName="Edit3" className="text-amber-500" size={20}/> <span>Архив смыслов Obsidian Павла</span></h2>
+                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-2 uppercase"><IconBase iconName="Edit3" className="text-amber-500" size={20}/> <span>Архив смыслов Obsidian</span></h2>
                             
                             <div className="flex flex-wrap gap-2 mb-3">
                                 <button onClick={() => insertScriptTemplate('dogma')} className="text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2.5 py-1.5 rounded-lg hover:bg-amber-500/20">Скрипт: Разрушение догм</button>
@@ -861,14 +842,14 @@
                                 <button onClick={() => insertScriptTemplate('math')} className="text-[10px] font-black uppercase tracking-wider bg-orange-500/10 text-orange-400 border border-orange-500/30 px-2.5 py-1.5 rounded-lg hover:bg-orange-500/20">Скрипт: Математика Времени</button>
                             </div>
 
-                            <textarea rows={6} placeholder="Промпты, скрипты коротких роликов Павла, тезисы книги «Anti-психология» без цензуры..." value={contentIdea} onChange={e => setContentIdea(e.target.value)} className="w-full bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-xl p-3.5 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 text-xs resize-none font-medium leading-relaxed" />
+                            <textarea rows={6} placeholder="Промпты, скрипты коротких роликов Reels/Shorts, тезисы книги «Anti-психология»..." value={contentIdea} onChange={e => setContentIdea(e.target.value)} className="w-full bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-xl p-3.5 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 text-xs resize-none font-medium leading-relaxed" />
                             <Button className="w-full mt-3" onClick={() => { if(contentIdea.trim()){ saveDailyNote(contentIdea, 'CONTENT'); setContentIdea(''); }}}>Залить идею в матрицу</Button>
                         </div>
                         
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-xl font-black text-white flex items-center gap-2 mb-4 uppercase"><IconBase iconName="TrendingUp" className="text-yellow-500" size={20}/> <span>Медиа-лестница личного бренда</span></h2>
                             <div className="space-y-2">
-                                {['Концепт Павла зафиксирован в ядре', 'Скрипт развернут в Obsidian', 'Материал захвачен на съемке', 'Монтаж Павла и цветокоррекция', 'Контент опубликован в матрице'].map((step, i) => (
+                                {['Концепт зафиксирован в ядре', 'Скрипт развернут в Obsidian', 'Материал захвачен на съемке', 'Монтаж и цветокоррекция выполнена', 'Контент опубликован в матрице'].map((step, i) => (
                                     <div key={i} className={`p-3.5 rounded-xl border cursor-pointer flex justify-between items-center transition-all premium-elevation ${state.contentLadder >= i ? 'bg-amber-500/10 border-amber-500/40 text-amber-400' : 'bg-[#0f0f0f]/40 border-[#262626]/40 text-slate-400'}`} onClick={() => update('contentLadder', state.contentLadder === i ? i - 1 : i)}>
                                         <span className="text-xs font-black uppercase tracking-wide">{i+1}. {step}</span>
                                         {state.contentLadder >= i && <IconBase iconName="Check" size={14} strokeWidth={3} />}
@@ -881,19 +862,19 @@
             );
         };
 
-        // ЭКРАН 6: Стабилизированные Ритуалы Настроя
+        // ЭКРАН 6: Стабилизированные Ритуалы
         const RitualsView = ({ state, toggleTask, onCodeClick }) => {
             return (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
                     <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Ритуалы настроя</h1>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <div className={`${THEME.panel} border-t-4 border-t-amber-500`}>
-                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Flame" className="text-amber-400" size={20}/> <span>Утренний Алгоритм Павла</span></h2>
+                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Flame" className="text-amber-400" size={20}/> <span>Утренний Настрой Павла</span></h2>
                             <BreathingTimer type="morning" onCompleteAction={() => toggleTask('breathAm', 'spirit', 15, true)} />
                             <ManifestReader type="AM" onCodeClick={onCodeClick} />
                         </div>
                         <div className={`${THEME.panel} border-t-4 border-t-yellow-600`}>
-                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Moon" className="text-yellow-600" size={20}/> <span>Вечерний Алгоритм Павла</span></h2>
+                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Moon" className="text-yellow-600" size={20}/> <span>Вечерний Настрой Павла</span></h2>
                             <BreathingTimer type="evening" onCompleteAction={() => toggleTask('breathPm', 'spirit', 15, true)} />
                             <ManifestReader type="PM" onCodeClick={onCodeClick} />
                         </div>
@@ -926,11 +907,11 @@
                 
                 let text = "";
                 if (index === currentAgeWeeks) {
-                    text = "Павел, ты находишься в этой точке прямо сейчас. Высший уровень Рыб — идеальная интуиция и чтение мотивов. Направь всю волю Семерки (Стратега) в текущие 7 дней.";
+                    text = "Павел, ты находишься в этой точке прямо сейчас. Высший уровень Рыб — идеальная интуиция. Направь всю волю Семерки (Стратега) в текущие 7 дней.";
                 } else if (isPassed) {
-                    text = `${diff} нед. назад осталось в истории. Каждая секунда сформировала твою сегодняшнюю мощь как ментора и эксперта. Прошлого не изменить.`;
+                    text = `${diff} нед. назад осталось в истории. Каждая секунда сформировала твою сегодняшнюю мощь. Прошлого не изменить, двигайся дальше.`;
                 } else {
-                    text = `Через ${diff} нед. наступит это будущее. Будет ли там планетарный триумф Павла Маркова — решается твоим действием сегодня.`;
+                    text = `Через ${diff} нед. наступит это будущее. Твои действия сегодня полностью определяют этот результат.`;
                 }
 
                 setSelectedWeek({ weekNum, text });
@@ -950,7 +931,7 @@
 
             return (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
-                    <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Прогресс</h1>
+                    <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Прогресс матрицы</h1>
                     <div className={`${THEME.panel} bg-gradient-to-br from-[#121212]/90 to-[#0a0a0a]/90`}>
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                             <div className="flex items-center gap-4">
@@ -958,8 +939,8 @@
                                     <IconBase iconName="Trophy" className="text-[#0a0a0a]" size={24} />
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Уровень Павла: {level}</h2>
-                                    <p className="text-amber-400 font-black tracking-widest uppercase text-[10px]">Каста Суверенов // Код Пути: 7 (Мудрец)</p>
+                                    <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Уровень: {level}</h2>
+                                    <p className="text-amber-400 font-black tracking-widest uppercase text-[10px]">Код Пути: 7 (Мудрец // Стратег)</p>
                                 </div>
                             </div>
                             <div className="bg-[#050505] px-4 py-2.5 rounded-xl border border-[#262626]/60 font-mono text-base font-black text-white">
@@ -977,7 +958,7 @@
                             </div>
                         </div>
 
-                        <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest mb-3">Баланс идентичностей Павла Маркова</h3>
+                        <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest mb-3">Идентичности Павла</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                             <RenderBar label="Атлет (Тело)" val={categories.body} col="bg-amber-500" />
                             <RenderBar label="Структура (PM)" val={categories.pm} col="bg-yellow-500" />
@@ -988,12 +969,12 @@
                         </div>
                     </div>
 
-                    {/* Модуль Memento Mori с адаптивной плавной горизонтальной прокруткой для глаз */}
+                    {/* Модуль Memento Mori — Линейный Годовой трекер для Павла */}
                     <div className={`${THEME.panel}`}>
                         <div className="flex justify-between items-center mb-3">
                             <div>
-                                <h3 className="text-sm font-black text-white uppercase tracking-wider">Модуль «Memento Mori Павла»</h3>
-                                <p className="text-[11px] text-slate-400 mt-0.5">Каждая ячейка — 1 неделя жизни Павла. Каждая строка — 1 полный год (52 недели). Кликни для инсайта.</p>
+                                <h3 className="text-sm font-black text-white uppercase tracking-wider">Модуль «Memento Mori»</h3>
+                                <p className="text-[11px] text-slate-400 mt-0.5">Каждая ячейка — 1 неделя жизни Павла Маркова. Каждая строка — 1 полный год (52 недели).</p>
                             </div>
                             <span className="text-xs font-mono font-black text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded">Осталось: {totalWeeks - currentAgeWeeks} нед</span>
                         </div>
@@ -1031,13 +1012,13 @@
                         </div>
                         <div className="flex justify-between text-[10px] font-mono text-slate-400 mt-2.5 px-1">
                             <span>0 лет (Рождение)</span>
-                            <span className="text-amber-500 font-bold">Текущий возраст Павла: {Math.floor(currentAgeWeeks/52)} лет // Знак: Рыбы ♓</span>
+                            <span className="text-amber-500 font-bold">Текущий возраст: {Math.floor(currentAgeWeeks/52)} лет // Знак: Рыбы ♓</span>
                             <span>80 лет (Финал)</span>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <NumericInput label="Текущий уровень энергии ЦНС Павла" min={1} max={10} value={state.energyMetrics.energy} onChange={(v) => update('energyMetrics', {energy: v})} />
+                        <NumericInput label="Текущий уровень энергии ЦНС" min={1} max={10} value={state.energyMetrics.energy} onChange={(v) => update('energyMetrics', {energy: v})} />
                         <NumericInput label="Уровень психологического стресса" min={1} max={10} color="red" value={state.energyMetrics.stress} onChange={(v) => update('energyMetrics', {stress: v})} />
                     </div>
                 </div>
@@ -1051,22 +1032,22 @@
             const generateObsidianData = () => {
                 const m = state.energyMetrics, logs = state.taskTimestamps;
                 return `# Суверенный Лог Павла Маркова: ${new Date().toLocaleDateString('ru-RU')}\n\n` +
-                       `## Метрики ЦНС Павла\n- Сон: ${m.sleep}ч\n- Энергия: ${m.energy}/10\n- Стресс: ${m.stress}/10\n- Готовность: ${m.readiness}/10\n\n` +
-                       `## Вектор Книги «Anti-психология»\n- Глава: ${state.bookProgress.chapter}, Страницы: ${state.bookProgress.totalPages}/77\n\n` +
-                       `## Стоический Анализ Дня\n` +
-                       `### Дневной триумф Павла\n${state.notes.stoicTriump || 'Не заполнено'}\n\n` +
-                       `### Точки роста Павла\n${state.notes.stoicGrowth || 'Не заполнено'}\n\n` +
-                       `## Таймстампы Действий Павла\n` +
-                       `- [${logs.morningHygiene || '—'}] Гигиена AM\n` +
-                       `- [${logs.waterAm || '—'}] Вода + Свет + Вентиляция\n` +
-                       `- [${logs.pm || '—'}] PM deep work\n` +
-                       `- [${logs.body || '—'}] Силовая сессия в клубе\n\n` +
-                       `## Зафиксированные смыслы дня Павла\n${state.notes.savedDaily.join('\n') || '- Нет записей'}`;
+                       `## Метрики ЦНС\n- Сон: ${m.sleep}ч\n- Энергия: ${m.energy}/10\n- Стресс: ${m.stress}/10\n- Готовность: ${m.readiness}/10\n\n` +
+                       `## Книга «Anti-психология»\n- Глава: ${state.bookProgress.chapter}, Страницы: ${state.bookProgress.totalPages}/77\n\n` +
+                       `## Анализ Дня\n` +
+                       `### Дневной триумф\n${state.notes.stoicTriump || 'Не заполнено'}\n\n` +
+                       `### Точки роста\n${state.notes.stoicGrowth || 'Не заполнено'}\n\n` +
+                       `## Таймстампы Выполнения\n` +
+                       `- [${logs.morningHygiene || '—'}] Базовая утренняя гигиена\n` +
+                       `- [${logs.waterAm || '—'}] Комплекс гидратации\n` +
+                       `- [${logs.pm || '—'}] Рабочий PM-спринт\n` +
+                       `- [${logs.body || '—'}] Силовая сессия\n\n` +
+                       `## Зафиксированные смыслы\n${state.notes.savedDaily.join('\n') || '- Нет записей'}`;
             };
 
             const runCopy = () => {
                 if (navigator.clipboard && window.isSecureContext) {
-                    navigator.clipboard.writeText(generateObsidianData()).then(() => showToast("Лог скопирован по шаблону Стоицизма. ✨"));
+                    navigator.clipboard.writeText(generateObsidianData()).then(() => showToast("Лог скопирован в буфер обмена. ✨"));
                 }
             };
 
@@ -1078,7 +1059,7 @@
                 document.body.appendChild(anchor);
                 anchor.click();
                 anchor.remove();
-                showToast("Архив ядра заархивирован в JSON. 🔐");
+                showToast("Бекап заархивирован в JSON. 🔐");
             };
 
             const runBackupImport = (e) => {
@@ -1101,28 +1082,28 @@
                     <h1 className="text-3xl font-black tracking-tighter text-white uppercase">Экспорт данных</h1>
                     
                     <div className={`${THEME.panel}`}>
-                        <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Anchor" className="text-amber-400" size={20}/> <span>Анализ Павла по методологии Стоицизма</span></h2>
+                        <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Anchor" className="text-amber-400" size={20}/> <span>Анализ дня по методологии Стоицизма</span></h2>
                         <div className="space-y-3">
                             <div>
-                                <label className="text-xs font-black uppercase text-slate-300 block mb-1">## Дневной триумф Павла (Что сделано безупречно?)</label>
-                                <textarea value={state.notes.stoicTriump || ''} onChange={e => update('notes', { stoicTriump: e.target.value })} placeholder="Запиши победы Павла над хаосом внешнего мира..." className="w-full bg-[#0f0f0f] border border-[#262626] rounded-xl p-3 text-xs focus:outline-none text-slate-200" rows={2} />
+                                <label className="text-xs font-black uppercase text-slate-300 block mb-1">## Дневной триумф (Что сделано безупречно?)</label>
+                                <textarea value={state.notes.stoicTriump || ''} onChange={e => update('notes', { stoicTriump: e.target.value })} placeholder="Запиши победы над хаосом..." className="w-full bg-[#0f0f0f] border border-[#262626] rounded-xl p-3 text-xs focus:outline-none text-slate-200" rows={2} />
                             </div>
                             <div>
                                 <label className="text-xs font-black uppercase text-slate-300 block mb-1">## Точки роста (Где разум уступил шуму?)</label>
-                                <textarea value={state.notes.stoicGrowth || ''} onChange={e => update('notes', { stoicGrowth: e.target.value })} placeholder="Где была допущена микро-слабость или потеря фокуса воли..." className="w-full bg-[#0f0f0f] border border-[#262626] rounded-xl p-3 text-xs focus:outline-none text-slate-200" rows={2} />
+                                <textarea value={state.notes.stoicGrowth || ''} onChange={e => update('notes', { stoicGrowth: e.target.value })} placeholder="Где была допущена слабость или потеря контроля..." className="w-full bg-[#0f0f0f] border border-[#262626] rounded-xl p-3 text-xs focus:outline-none text-slate-200" rows={2} />
                             </div>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className={`${THEME.panel}`}>
-                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Download" className="text-amber-500" size={20}/> <span>Obsidian Синхронизация Павла</span></h2>
-                            <p className="text-xs text-slate-300 mb-4">Сборка автоматического структурированного markdown-файла твоего лога дня Павла Маркова.</p>
+                            <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Download" className="text-amber-500" size={20}/> <span>Obsidian Синхронизация</span></h2>
+                            <p className="text-xs text-slate-300 mb-4">Сборка автоматического структурированного markdown-файла твоего лога дня для копирования в базу Obsidian.</p>
                             <Button variant="primary" className="w-full text-xs" onClick={runCopy}>Копировать готовый шаблон лога</Button>
                         </div>
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Settings" className="text-orange-400" size={20}/> <span>Бекап Ядра Markov OS</span></h2>
-                            <p className="text-xs text-slate-300 mb-4">Локальное сохранение уровней, прогресса книги Павла и логов в независимый зашифрованный слепок JSON.</p>
+                            <p className="text-xs text-slate-300 mb-4">Локальное сохранение уровней, прогресса книги и логов в независимый слепок JSON.</p>
                             <div className="flex gap-2">
                                 <Button variant="secondary" className="flex-1 text-xs" onClick={runBackupExport}>Скачать бекап</Button>
                                 <label className="flex-1 flex items-center justify-center px-4 py-3 rounded-2xl bg-[#1a1a1a] border border-[#333]/60 text-amber-400 font-bold hover:bg-[#222] cursor-pointer text-xs uppercase transition-colors">
@@ -1134,7 +1115,7 @@
                         <div className={`${THEME.panel} lg:col-span-2`}>
                             <h2 className="text-xl font-black text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Music" className="text-amber-400" size={20}/> <span>Банк творческих идей SUNO</span></h2>
                             <div className="flex gap-3 mb-4">
-                                <input type="text" placeholder="Концепт музыкального промпта, структуры трека Павла..." value={sunoInput} onChange={e => setSunoInput(e.target.value)} className="flex-1 bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-xl p-3 text-xs text-slate-200 focus:outline-none" />
+                                <input type="text" placeholder="Концепт музыкального промпта, структуры трека..." value={sunoInput} onChange={e => setSunoInput(e.target.value)} className="flex-1 bg-[#0f0f0f]/80 border border-[#262626]/60 rounded-xl p-3 text-xs text-slate-200 focus:outline-none" />
                                 <Button onClick={() => { if(sunoInput.trim()){ setState(p => ({...p, sunoIdeas: [...p.sunoIdeas, sunoInput]})); setSunoInput(''); showToast("Идея добавлена в творческий инкубатор."); }}}>Сохранить</Button>
                             </div>
                             {state.sunoIdeas.length > 0 && (
@@ -1191,7 +1172,7 @@
             const saveDailyNote = useCallback((text, source) => {
                 const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
                 update('notes', { savedDaily: [...state.notes.savedDaily, `[${time}] [${source}] ${text}`] });
-                showToast("Инсайт зафиксирован в ядре Павла. 📝");
+                showToast("Зафиксировано в ядре. 📝");
             }, [state.notes.savedDaily, update, showToast]);
 
             const addLanguagePhrase = useCallback((p) => {
@@ -1238,7 +1219,7 @@
                         </div>
                     </div>
 
-                    {/* Глобальная кнопка быстрого инсайта Павла */}
+                    {/* Глобальная кнопка быстрого инсайта */}
                     <div className="fixed bottom-24 right-6 lg:bottom-6 lg:right-6 z-50">
                         <button onClick={() => setInsightModalOpen(true)} className="w-12 h-12 rounded-full bg-gradient-to-r from-amber-400 to-amber-600 text-black flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition-all">
                             <IconBase iconName="Edit3" size={20} />
@@ -1250,16 +1231,16 @@
                         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-[110] animate-in fade-in">
                             <div className="bg-[#121212] border border-[#262626] rounded-3xl p-6 w-full max-w-md space-y-4">
                                 <div className="flex justify-between items-center">
-                                    <h3 className="text-sm font-black uppercase tracking-wider text-white">Мгновенный Инсайт Павла</h3>
+                                    <h3 className="text-sm font-black uppercase tracking-wider text-white">Мгновенный Инсайт</h3>
                                     <button onClick={() => setInsightModalOpen(false)} className="text-slate-400 hover:text-white"><IconBase iconName="X" size={16}/></button>
                                 </div>
-                                <textarea value={quickInsightText} onChange={e => setQuickInsightText(e.target.value)} placeholder="Зафиксируй мысль или менторский инсайт Павла прямо сейчас..." className="w-full bg-[#0a0a0a] border border-[#262626] rounded-2xl p-3.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500" rows={4} />
+                                <textarea value={quickInsightText} onChange={e => setQuickInsightText(e.target.value)} placeholder="Зафиксируй рабочую мысль или инсайт прямо сейчас..." className="w-full bg-[#0a0a0a] border border-[#262626] rounded-2xl p-3.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500" rows={4} />
                                 <Button className="w-full" onClick={handleAddQuickInsight}>Сохранить в матрицу ядра</Button>
                             </div>
                         </div>
                     )}
 
-                    {/* Модальное окно Нумерологии и Астро-кода Павла Маркова */}
+                    {/* Модальное окно Нумерологии и Сакрального Кода Павла Маркова */}
                     {numerologyModalOpen && (
                         <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-[120] animate-in fade-in">
                             <div className="bg-[#121212] border border-amber-500/40 rounded-[2rem] p-6 w-full max-w-lg space-y-4 relative overflow-hidden">
@@ -1287,7 +1268,7 @@
                                     </div>
                                 </div>
                                 <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-center">
-                                    <span className="text-[10px] font-mono font-black text-amber-400 uppercase tracking-widest">Активирован скрытый буст опыта на 5, 7 и 14 выполненное действие</span>
+                                    <span className="text-[10px] font-mono font-black text-amber-400 uppercase tracking-widest">Активирован буст опыта на 5, 7 и 14 выполненное действие за цикл</span>
                                 </div>
                             </div>
                         </div>
@@ -1352,7 +1333,7 @@
                                     className={`flex-1 flex flex-col items-center justify-center min-w-[66px] py-1.5 gap-1 ${active ? 'text-amber-400' : 'text-slate-400'}`}
                                 >
                                     <IconBase iconName={tab.icon} size={16} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest">{tab.label.substring(0, 5)}</span>
                                 </button>
                             )
                         })}
