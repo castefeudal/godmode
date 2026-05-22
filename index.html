@@ -2,157 +2,292 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MARKOV OS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Markov OS - System Elite</title>
+    
+    <!-- Tailwind CSS (Для полной автономности при желании можно сохранить локально, но для GitHub Pages CDN отлично подходит) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <style>
-        :root {
-            --bg-main: #0a0a0a;
-            --bg-panel: rgba(18, 18, 18, 0.9);
-            --border-panel: #262626;
-            --accent: #fbbf24;
-            --accent-glow: rgba(251, 191, 36, 0.3);
-        }
-        body {
-            background-color: var(--bg-main);
-            color: #e2e8f0;
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        body { 
+            background-color: #0a0a0a; 
+            color: #e2e8f0; 
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
-            -webkit-tap-highlight-color: transparent;
         }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
         ::selection { background: rgba(251,191,36,0.3); color: white; }
-        
-        .glass-panel {
-            background: var(--bg-panel);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--border-panel);
-        }
+        .touch-manipulation { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
         
         @keyframes shimmer { 100% { transform: translateX(100%); } }
-        .animate-shimmer { animation: shimmer 2.5s infinite; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes zoomIn95 { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         
-        /* Safe area for mobile bottoms */
-        @supports (padding-bottom: env(safe-area-inset-bottom)) {
-            .mobile-nav { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
-        }
+        .animate-in { animation-fill-mode: forwards; }
+        .fade-in { animation-name: fadeIn; }
+        .zoom-in-95 { animation-name: zoomIn95; }
+        .duration-700 { animation-duration: 700ms; }
 
-        /* Smooth tab transitions */
-        .fade-enter { opacity: 0; transform: translateY(10px); }
-        .fade-enter-active { opacity: 1; transform: translateY(0); transition: opacity 400ms, transform 400ms; }
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            nav.fixed.bottom-0 { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+        }
     </style>
 </head>
-<body class="flex flex-col lg:flex-row min-h-screen overflow-x-hidden selection:bg-amber-500/30 text-slate-200">
+<body>
+    <div id="root"></div>
 
-    <div id="toast-container" class="fixed top-4 md:top-8 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none w-[95%] md:w-auto max-w-lg"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
-    <aside class="hidden lg:flex flex-col w-[280px] xl:w-[320px] glass-panel p-6 xl:p-8 h-screen sticky top-0 z-40 shadow-[15px_0_40px_rgba(0,0,0,0.8)]">
-        <div class="mb-12 xl:mb-16 relative group cursor-default select-none">
-            <div class="absolute -inset-4 bg-gradient-to-r from-amber-400 to-yellow-600 rounded-2xl blur-xl opacity-10 transition duration-1000"></div>
-            <h1 class="relative text-4xl xl:text-5xl font-black tracking-widest text-white drop-shadow-md">MARKOV<br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500">OS</span></h1>
-            <p class="relative text-[10px] xl:text-[11px] text-slate-400 font-black tracking-widest mt-3 xl:mt-4 flex items-center gap-2 uppercase">
-                System Elite <span id="system-status-dot" class="w-2 h-2 xl:w-2.5 xl:h-2.5 rounded-full shadow-[0_0_12px_currentColor] bg-amber-400 text-amber-400 animate-pulse"></span>
-            </p>
-        </div>
-        <nav id="desktop-nav" class="flex-1 space-y-2 xl:space-y-3 overflow-y-auto hide-scrollbar pr-2 pb-10"></nav>
-    </aside>
-
-    <main class="flex-1 p-4 sm:p-6 md:p-10 lg:p-12 xl:p-16 w-full max-w-full min-h-screen relative z-10 pb-28 md:pb-32 lg:pb-16 overflow-hidden">
-        <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full h-[800px] bg-amber-500 opacity-[0.015] blur-[150px] pointer-events-none -z-10"></div>
-        <div id="app-content" class="max-w-[1200px] mx-auto w-full transition-all duration-500">
-            <!-- Dynamic Content Renders Here -->
-        </div>
-    </main>
-
-    <nav id="mobile-nav" class="lg:hidden fixed bottom-0 left-0 right-0 glass-panel border-t flex overflow-x-auto hide-scrollbar z-50 shadow-[0_-20px_50px_rgba(0,0,0,0.9)] px-1 pt-2 mobile-nav"></nav>
-
-    <script>
-        // --- 1. ROBUST DATABASE (IndexedDB) ---
-        class MarkovDB {
-            constructor() {
-                this.dbName = 'MarkovOS_DB';
-                this.dbVersion = 1;
-                this.storeName = 'stateStore';
-                this.db = null;
-            }
-
-            async init() {
-                return new Promise((resolve, reject) => {
-                    const request = indexedDB.open(this.dbName, this.dbVersion);
-                    request.onupgradeneeded = (e) => {
-                        this.db = e.target.result;
-                        if (!this.db.objectStoreNames.contains(this.storeName)) {
-                            this.db.createObjectStore(this.storeName);
-                        }
-                    };
-                    request.onsuccess = (e) => {
-                        this.db = e.target.result;
-                        resolve();
-                    };
-                    request.onerror = (e) => reject(e);
+        // Автономный звуковой движок на Web Audio API (Без внешних файлов)
+        const AudioEngine = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playClick() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.04);
+                gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.04);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.04);
+            },
+            playTick() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.02, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.02);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.02);
+            },
+            playPhaseChange() {
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1000, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            },
+            playSuccess() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // До-Ми-Соль-До (Мажорный триумф)
+                notes.forEach((freq, index) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + index * 0.08);
+                    gain.gain.setValueAtTime(0.04, now + index * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + index * 0.08 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + index * 0.08);
+                    osc.stop(now + index * 0.08 + 0.3);
                 });
             }
+        };
 
-            async get(key) {
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction(this.storeName, 'readonly');
-                    const store = tx.objectStore(this.storeName);
-                    const request = store.get(key);
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error);
-                });
+        // Нативная тактильная обратная связь
+        const triggerHaptic = (pattern = 15) => {
+            if (navigator.vibrate) {
+                navigator.vibrate(pattern);
             }
+        };
 
-            async set(key, value) {
-                return new Promise((resolve, reject) => {
-                    const tx = this.db.transaction(this.storeName, 'readwrite');
-                    const store = tx.objectStore(this.storeName);
-                    const request = store.put(value, key);
-                    request.onsuccess = () => resolve();
-                    request.onerror = () => reject(request.error);
-                });
-            }
-        }
+        // Встроенные SVG иконки Lucide (Полная автономность от внешних CDN скриптов)
+        const SVG_ICONS = {
+            Home: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10',
+            Clock: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
+            BookOpen: 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zm22 0h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+            Dumbbell: 'M6.5 6.5h11M6.5 17.5h11M12 3v18M3 6.5h3.5m11 0H21M3 17.5h3.5m11 0H21',
+            Smartphone: 'M5 2h14a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM12 18h.01',
+            Moon: 'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z',
+            Target: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0 0v-4m0-12V2M2 12h4m12 0h4',
+            Zap: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+            ZapOff: 'M12.41 12.41L3 21m10-19L9.66 6.34m2.46 2.46L11 10H3l2.81-3.37M19 14l-3 3.5M21 10h-7l1-8',
+            CheckCircle2: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm-2-11l2 2 4-4',
+            Circle: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z',
+            ChevronRight: 'M9 5l7 7-7 7',
+            ChevronDown: 'M19 9l-7 7-7-7',
+            Brain: 'M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.44 2.5 2.5 0 0 1 0-3.12 3 3 0 0 1 0-4.88 2.5 2.5 0 0 1 0-3.12A2.5 2.5 0 0 1 9.5 2zm5 0A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.44 2.5 2.5 0 0 0 0-3.12 3 3 0 0 0 0-4.88 2.5 2.5 0 0 0 0-3.12A2.5 2.5 0 0 0 14.5 2z',
+            Battery: 'M23 13v-2M1 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H1a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z',
+            ShieldAlert: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zm0-14v4m0 4h.01',
+            PenTool: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 11l3-3m-3 3l-3-3',
+            Download: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5l5 5 5-5m-5 5V3',
+            Plus: 'M12 5v14M5 12h14',
+            Minus: 'M5 12h14',
+            Music: 'M9 18V5l12-2v13M9 10l12-2M7 21a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm12-2a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+            Copy: 'M9 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1m-5 10h11a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2H10a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2z',
+            Check: 'M20 6L9 17l-5-5',
+            X: 'M18 6L6 18M6 6l12 12',
+            Flame: 'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 3.5z',
+            Activity: 'M22 12h-4l-3 9L9 3l-3 9H2',
+            TrendingUp: 'M23 6l-9.5 9.5-5-5L1 18m22-12h-6m6 0v6',
+            Layout: 'M3 3h18v18H3zm0 6h18M9 9v12',
+            Calendar: 'M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm-3-2v4M8 2v4M3 10h18',
+            Settings: 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+            Trophy: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6zm12 0h1.5a2.5 2.5 0 0 0 0-5H18M4.22 22h15.56M12 15V22m-4-7a4 4 0 0 1 8 0z',
+            Wind: 'M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2',
+            BookMarked: 'M4 6h16M4 10h16M4 14h12M4 18h12M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2z',
+            Play: 'M5 3l14 9-14 9V3z',
+            Pause: 'M6 4h4v16H6zm8 0h4v16h-4z',
+            RotateCcw: 'M3.51 9a9 9 0 0 1 14.85-3.36L21 8M3 3v6h6',
+            Timer: 'M10 2h4M12 14l3-3m-3 15a9 9 0 1 1 0-18 9 9 0 0 1 0 18z',
+            Sparkles: 'M12 3v4M12 17v4M3 12h4M17 12h4m-14.8-4.8l2.8 2.8m8 8l2.8 2.8m0-13.6l-2.8 2.8m-8 8l-2.8 2.8',
+            HeartPulse: 'M20.42 4.58a5.4 5.4 0 0 0-7.65 0l-.77.78-.77-.78a5.4 5.4 0 0 0-7.65 0 5.86 5.86 0 0 0 0 8.14L12 21l8.42-8.28a5.86 5.86 0 0 0 0-8.14zM12 5v14',
+            Compass: 'M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12zM12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z',
+            Layers: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+            List: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+            GitCommit: 'M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zm-12-6h6m12 0h6',
+            Anchor: 'M12 5V22M5 12H2M22 12h-3M12 22a7 7 0 0 1-7-7M12 22a7 7 0 0 0 7-7M12 5a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+            Shield: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+            Utensils: 'M18 8h1a4 4 0 0 1 0 8h-1M2 11h14c0-4.5-3.5-5-3.5-5S9 6.5 9 11M6 11v10M10 11v10',
+            Globe: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm0-20a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10zM2 12h20',
+            BrainCircuit: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM9 9h6v6H9z',
+            Edit3: 'M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z',
+            ShieldCheck: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zm-3-11l2 2 4-4',
+            Briefcase: 'M16 16v1a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-1M2 7h20v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2zM14 3a2 2 0 0 0-4 0v4h4z',
+            Crown: 'M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z'
+        };
 
-        // --- 2. CONFIGURATION & MANIFESTS ---
+        const IconBase = ({ iconName, size = 24, className = "", strokeWidth = 2 }) => {
+            const svgPath = SVG_ICONS[iconName] || SVG_ICONS.Circle;
+            return (
+                <svg 
+                    width={size} 
+                    height={size} 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth={strokeWidth} 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    className={`inline-flex items-center justify-center ${className}`}
+                    style={{ flexShrink: 0 }}
+                >
+                    <path d={svgPath} />
+                </svg>
+            );
+        };
+
+        // Экспорт конкретных компонентов для вызова через деструктуризацию (имитация старого синтаксиса)
+        const Home = (p) => <IconBase iconName="Home" {...p}/>;
+        const Clock = (p) => <IconBase iconName="Clock" {...p}/>;
+        const BookOpen = (p) => <IconBase iconName="BookOpen" {...p}/>;
+        const Dumbbell = (p) => <IconBase iconName="Dumbbell" {...p}/>;
+        const Smartphone = (p) => <IconBase iconName="Smartphone" {...p}/>;
+        const Moon = (p) => <IconBase iconName="Moon" {...p}/>;
+        const Target = (p) => <IconBase iconName="Target" {...p}/>;
+        const Zap = (p) => <IconBase iconName="Zap" {...p}/>;
+        const CheckCircle2 = (p) => <IconBase iconName="CheckCircle2" {...p}/>;
+        const Circle = (p) => <IconBase iconName="Circle" {...p}/>;
+        const ChevronRight = (p) => <IconBase iconName="ChevronRight" {...p}/>;
+        const Brain = (p) => <IconBase iconName="Brain" {...p}/>;
+        const Battery = (p) => <IconBase iconName="Battery" {...p}/>;
+        const ShieldAlert = (p) => <IconBase iconName="ShieldAlert" {...p}/>;
+        const PenTool = (p) => <IconBase iconName="PenTool" {...p}/>;
+        const Download = (p) => <IconBase iconName="Download" {...p}/>;
+        const Plus = (p) => <IconBase iconName="Plus" {...p}/>;
+        const Music = (p) => <IconBase iconName="Music" {...p}/>;
+        const Copy = (p) => <IconBase iconName="Copy" {...p}/>;
+        const Check = (p) => <IconBase iconName="Check" {...p}/>;
+        const X = (p) => <IconBase iconName="X" {...p}/>;
+        const Flame = (p) => <IconBase iconName="Flame" {...p}/>;
+        const Activity = (p) => <IconBase iconName="Activity" {...p}/>;
+        const TrendingUp = (p) => <IconBase iconName="TrendingUp" {...p}/>;
+        const Layout = (p) => <IconBase iconName="Layout" {...p}/>;
+        const Calendar = (p) => <IconBase iconName="Calendar" {...p}/>;
+        const Settings = (p) => <IconBase iconName="Settings" {...p}/>;
+        const Trophy = (p) => <IconBase iconName="Trophy" {...p}/>;
+        const Wind = (p) => <IconBase iconName="Wind" {...p}/>;
+        const BookMarked = (p) => <IconBase iconName="BookMarked" {...p}/>;
+        const Minus = (p) => <IconBase iconName="Minus" {...p}/>;
+        const Play = (p) => <IconBase iconName="Play" {...p}/>;
+        const Pause = (p) => <IconBase iconName="Pause" {...p}/>;
+        const RotateCcw = (p) => <IconBase iconName="RotateCcw" {...p}/>;
+        const Timer = (p) => <IconBase iconName="Timer" {...p}/>;
+        const Sparkles = (p) => <IconBase iconName="Sparkles" {...p}/>;
+        const HeartPulse = (p) => <IconBase iconName="HeartPulse" {...p}/>;
+        const Compass = (p) => <IconBase iconName="Compass" {...p}/>;
+        const Layers = (p) => <IconBase iconName="Layers" {...p}/>;
+        const List = (p) => <IconBase iconName="List" {...p}/>;
+        const GitCommit = (p) => <IconBase iconName="GitCommit" {...p}/>;
+        const ChevronDown = (p) => <IconBase iconName="ChevronDown" {...p}/>;
+        const Anchor = (p) => <IconBase iconName="Anchor" {...p}/>;
+        const Shield = (p) => <IconBase iconName="Shield" {...p}/>;
+        const ZapOff = (p) => <IconBase iconName="ZapOff" {...p}/>;
+        const Utensils = (p) => <IconBase iconName="Utensils" {...p}/>;
+        const Globe = (p) => <IconBase iconName="Globe" {...p}/>;
+        const BrainCircuit = (p) => <IconBase iconName="BrainCircuit" {...p}/>;
+        const Edit3 = (p) => <IconBase iconName="Edit3" {...p}/>;
+        const ShieldCheck = (p) => <IconBase iconName="ShieldCheck" {...p}/>;
+        const Briefcase = (p) => <IconBase iconName="Briefcase" {...p}/>;
+        const Crown = (p) => <IconBase iconName="Crown" {...p}/>;
+
+        const THEME = {
+            bg: 'bg-[#0a0a0a]', 
+            panel: 'bg-[#121212]/90 backdrop-blur-2xl', 
+            panelBorder: 'border-[#262626]',
+            textMain: 'text-slate-200',
+            textMuted: 'text-slate-400',
+            accent: 'text-amber-400', 
+            accentBg: 'bg-gradient-to-r from-amber-400 to-yellow-600',
+            accentHover: 'hover:brightness-110 hover:shadow-[0_0_30px_rgba(251,191,36,0.3)]',
+            accentSoft: 'bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-[inset_0_0_20px_rgba(251,191,36,0.05)]',
+        };
+
         const MODES = {
-            max: { id: 'max', label: 'Максимум', pmTime: 90, engTime: 30 },
-            norm: { id: 'norm', label: 'Норма', pmTime: 60, engTime: 25 },
-            min: { id: 'min', label: 'Минимум', pmTime: 15, engTime: 10 },
-            recovery: { id: 'recovery', label: 'Восстановление', pmTime: 0, engTime: 0 },
-            saturday: { id: 'saturday', label: 'Суббота', pmTime: 0, engTime: 0 },
-            sunday: { id: 'sunday', label: 'Воскресенье', pmTime: 0, engTime: 0 }
+            MAX: { id: 'max', label: 'Максимум', desc: 'Полная загрузка.', pmTime: 90, engTime: 30 },
+            NORM: { id: 'norm', label: 'Норма', desc: 'База.', pmTime: 60, engTime: 25 },
+            MIN: { id: 'min', label: 'Минимум', desc: 'Только суть.', pmTime: 15, engTime: 10 },
+            RECOVERY: { id: 'recovery', label: 'Восстановление', desc: 'Отдых.', pmTime: 0, engTime: 0 },
+            SATURDAY: { id: 'saturday', label: 'Суббота', desc: 'Vibe & Relax.', pmTime: 0, engTime: 0 },
+            SUNDAY: { id: 'sunday', label: 'Воскресенье', desc: 'Soft Entry.', pmTime: 0, engTime: 0 }
         };
 
         const MANIFESTS = {
             AM: {
-                domination: {
-                    title: "СВЕРХ-МАНИФЕСТ: ДОМИНАЦИЯ",
-                    instruction: "Читай стоя, глубоким голосом. Твой вектор — экспансия.",
-                    text: `Я, Павел Марков, пробуждаю свою истинную силу и заявляю права на свою реальность. Прямо сейчас я активирую ультимативный щит разума: любой ментальный шум и страх мгновенно аннигилируются.\n\nВселенная, синхронизируй мои вибрации с кодами безграничного богатства и триумфа. Я притягиваю сильных, верных, масштабных людей. Мою касту.\n\nМой фокус безупречен. Каждое действие сегодня материализует успех. Мой вектор неизменен.\n\nДа будет так. Сбылось.`
-                },
-                stoic: {
-                    title: "ЩИТ СТОИКА: СОХРАНЕНИЕ",
-                    instruction: "Читай спокойно. Твой вектор — внутренняя цитадель и баланс.",
-                    text: `Сегодня я принимаю реальность такой, какая она есть. Я не могу контролировать всё, но я полностью контролирую свои реакции, свой фокус и свои действия.\n\nЯ отпускаю тревогу о том, что не в моей власти. Моя задача сегодня — не покорить мир, а сохранить целостность системы. Я действую без надрыва, методично и спокойно.\n\nМоя энергия — мой главный ресурс. Я расходую её только на то, что действительно важно. Я — скала в центре шторма.\n\nДа будет так. Сбылось.`
-                }
+                title: "УТРЕННИЙ СВЕРХ-МАНИФЕСТ",
+                subtitle: "Активация дофаминовой гравитации и щита разума",
+                instruction: "Читай сразу после пробуждения, стоя, расправив плечи, глубоким и уверенным голосом. Твой голос — закон.",
+                text: `«Господь, Архитектор Вселенной, и Ты, Великий Порядок Бытия.\n\nЯ, Павел Марков, пробуждаю свою истинную силу и заявляю права на свою реальность. Прямо сейчас я активирую ультимативный щит разума: любой ментальный шум, страх, сомнение или случайный негатив мгновенно аннигилируются, превращаясь в чистую созидательную энергию. Мои случайные мысли обесточены. Силу имеет только мое осознанное намерение. Воля Павла Маркова — высший закон для моего подсознания.\n\nВселенная, синхронизируй мои вибрации с кодами безграничного богатства, триумфа и масштабного успеха. Я включаю свою личную гравитацию: я — мощный ментальный магнит. Прямо сейчас я притягиваю в свое поле сильных, верных, масштабных и духовно близких мне людей. Мою касту. Моих людей.\n\nГосподь, наполни мое тело несокрушимой энергией, а разум — идеальной структуру и дисциплиной. Мой фокус безупречен. Каждое мое действие сегодня материализует успех, власть и финансовое изобилие. Я создаю этот день по праву творца. Мой вектор неизменен. Намерение исполнено.\n\nДа будет так. Сбылось. And so it is. Done. Así sea. Hecho está. 14.03.1997. 如此在. 成了. [Rúcǐ zài. Chéng le.]»`
             },
             PM: {
-                domination: {
-                    title: "ВЕЧЕРНИЙ СИНТЕЗ",
-                    instruction: "Читай в постели. Замедляй темп.",
-                    text: `Я полностью очищаю свое пространство от дневного шума. Любое внешнее влияние обесточено. Мой разум чист и неуязвим.\n\nЯ принимаю этот день как идеальную структуру опыта. Всё, что произошло, работает на меня.\n\nПока я сплю, мое подсознание программирует физический мир. Ко мне прокладывают дорогу грандиозный успех и нужные люди. Я засыпаю с абсолютным знанием своего величия.\n\nДа будет так. Сбылось.`
-                },
-                stoic: {
-                    title: "ВЕЧЕРНИЙ СТОИК",
-                    instruction: "Читай на выдохе. Отпусти контроль.",
-                    text: `Я сделал то, что было в моих силах. Я снимаю с себя ответственность за этот мир до завтрашнего утра. \n\nВсё недоделанное останется недоделанным. Всё тревожное теряет силу в темноте. Моя оперативная память очищена.\n\nЯ разрешаю своему телу и разуму полное восстановление. Я погружаюсь в тишину без чувства вины.\n\nДа будет так. Сбылось.`
-                }
+                title: "ВЕЧЕРНИЙ СВЕРХ-МАНИФЕСТ",
+                subtitle: "Обнуление кортизола и магнитный синтез во сне",
+                instruction: "Читай непосредственно перед сном, уже в постели. Замедляй темп с каждой строчкой, полностью расслабляя тело на выдохе.",
+                text: `«Господь, Творец всего сущего, и Ты, Вселенная, разворачивающая миры в безупречном порядке.\n\nЯ, Павел Марков, подвожу итог этого дня. Прямо сейчас я полностью очищаю свое пространство от дневного шума и суеты. Любое внешнее влияние, чужие эмоции, страхи и сомнения обесточены, стерты и лишены силы. Мой разум чист, стабилен и неуязвим.\n\nЯ принимаю этот день во всей его полноте — как идеальную и необходимую структуру своего опыта. Моя дисциплина зафиксирована, мои действия неизбежно ведут к триумфу. Всё, что произошло сегодня, уже работает на меня и приумножает мою силу.\n\nПока мое тело погружается в глубокий, исцеляющий сон, мое подсознание программирует физический мир. Вселенная перестраивает реальность под мои утренние манифесты. В эти минуты ко мне прокладывают дорогу колоссальные ресурсы, грандиозный успех и люди высочайшего ментального порядка. Мои клетки обновляются, моя сила растет в тишине. Я засыпаю с абсолютным знанием своего величия. Мой вектор непоколебим.\n\nДа будет так. Сбылось. And so it is. Done. Así sea. Hecho está. 14.03.1997. 如此在. 成了. [Rúcǐ zài. Chéng le.]»`
             }
         };
 
@@ -165,7 +300,7 @@
                 pm: false, english: false, body: false, content: false,
                 cardio: false, hygienePm: false, supplements: false, planTomorrow: false, breathPm: false, prayerPm: false
             },
-            missedYesterday: false,
+            missedYesterday: { pm: false, english: false, body: false },
             notes: { savedDaily: [] },
             sunoIdeas: [],
             languagePhrases: [],
@@ -175,858 +310,1193 @@
             },
             contentLadder: 0,
             lastLoginDate: new Date().toDateString(),
-            manifestState: 'domination' // or 'stoic'
         };
 
-        // --- 3. STATE MANAGEMENT ---
-        const db = new MarkovDB();
-        let state = {};
-
-        async function initApp() {
-            try {
-                await db.init();
-                const saved = await db.get('markovState');
-                state = saved ? { ...INITIAL_STATE, ...saved } : INITIAL_STATE;
-                checkNewDay();
-                renderNavigationHTML();
-                renderCurrentView();
-            } catch (e) {
-                console.error("DB Error, falling back to basic init", e);
-                state = INITIAL_STATE;
-                renderNavigationHTML();
-                renderCurrentView();
-            }
-        }
-
-        async function saveState() {
-            try {
-                await db.set('markovState', state);
-            } catch(e) { console.error("Save error", e); }
-        }
-
-        function updateState(updater) {
-            state = typeof updater === 'function' ? updater(state) : { ...state, ...updater };
-            saveState();
-            renderCurrentView();
-        }
-
-        function checkNewDay() {
-            const today = new Date().toDateString();
-            if (state.lastLoginDate !== today) {
-                const missedCore = !state.dailyTasks.pm && !state.dailyTasks.body;
-                let newRR = state.stats.returnRate;
-                if (missedCore) newRR = Math.max(0, newRR - 5);
-                else newRR = Math.min(100, newRR + 2);
-
-                updateState(prev => ({
-                    ...prev,
-                    currentMode: 'norm',
-                    missedYesterday: missedCore,
-                    dailyTasks: INITIAL_STATE.dailyTasks, // Reset tasks
-                    energyMetrics: { ...prev.energyMetrics, sleep: 0 },
-                    languagePhrases: [],
-                    contentLadder: 0,
-                    lastLoginDate: today,
-                    manifestState: 'domination',
-                    stats: { ...prev.stats, daysLogged: prev.stats.daysLogged + 1, returnRate: newRR }
-                }));
-                showToast("Новый цикл. Система перезапущена. ⚡");
-            }
-        }
-
-        // Burnout Shield Logic
-        function isBurnout() {
-            return state.energyMetrics.stress >= 7 || state.energyMetrics.sleep < 6 || state.energyMetrics.energy <= 4;
-        }
-
-        function getActiveTimeConfig() {
-            const base = MODES[state.currentMode];
-            // If burnout shield is active AND we are not already in minimum/recovery, cut times by 50%
-            if (isBurnout() && !['min', 'recovery', 'saturday', 'sunday'].includes(state.currentMode)) {
-                return {
-                    ...base,
-                    pmTime: Math.max(10, Math.floor(base.pmTime * 0.5)),
-                    engTime: Math.max(5, Math.floor(base.engTime * 0.5))
-                };
-            }
-            return base;
-        }
-
-        function toggleTask(taskId, category, xpReward) {
-            const isDone = !state.dailyTasks[taskId];
-            let newXp = state.stats.xp;
-            let newCatVal = state.stats.categories[category] || 0;
-
-            if (isDone) {
-                newXp += xpReward;
-                newCatVal = Math.min(100, newCatVal + (xpReward / 1.5));
-                if(xpReward > 0) showToast(`+${xpReward} XP. Синхронизация. ✨`);
-            } else {
-                newXp = Math.max(0, newXp - xpReward);
-                newCatVal = Math.max(0, newCatVal - (xpReward / 1.5));
-            }
-
-            const newLevel = Math.floor(newXp / 200) + 1;
-            
-            updateState(prev => ({
-                ...prev,
-                dailyTasks: { ...prev.dailyTasks, [taskId]: isDone },
-                stats: { 
-                    ...prev.stats, xp: newXp, level: newLevel, 
-                    categories: { ...prev.stats.categories, [category]: newCatVal } 
-                }
-            }));
-        }
-
-        // --- 4. UTILS & UI COMPONENTS ---
-        function showToast(msg, isAlert = false) {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `px-4 md:px-6 py-4 md:py-5 rounded-2xl font-bold shadow-2xl flex items-center gap-3 md:gap-4 border-[1.5px] backdrop-blur-2xl transition-all duration-500 opacity-0 translate-y-[-20px] ${isAlert ? 'bg-rose-950/95 text-rose-100 border-rose-500/50 shadow-[0_15px_50px_rgba(251,113,133,0.3)]' : 'bg-[#121212]/95 text-white border-amber-500/50 shadow-[0_15px_50px_rgba(251,191,36,0.25)]'}`;
-            
-            const iconName = isAlert ? 'shield-alert' : 'sparkles';
-            const iconColor = isAlert ? 'text-rose-400' : 'text-amber-400';
-            
-            toast.innerHTML = `
-                <i data-lucide="${iconName}" class="${iconColor} flex-shrink-0 w-6 h-6 md:w-7 md:h-7"></i>
-                <span class="text-sm md:text-lg leading-tight break-words">${msg}</span>
-            `;
-            container.appendChild(toast);
-            lucide.createIcons({ root: toast });
-
-            // Animate in
-            requestAnimationFrame(() => {
-                toast.classList.remove('opacity-0', 'translate-y-[-20px]');
-                toast.classList.add('opacity-100', 'translate-y-0');
+        function useAppState() {
+            const [state, setState] = useState(() => {
+                try {
+                    const saved = localStorage.getItem('markov_os_state_v11_elite');
+                    if (saved) return { ...INITIAL_STATE, ...JSON.parse(saved) };
+                } catch (e) {}
+                return INITIAL_STATE;
             });
 
-            setTimeout(() => {
-                toast.classList.remove('opacity-100', 'translate-y-0');
-                toast.classList.add('opacity-0', 'translate-y-[-20px]');
-                setTimeout(() => toast.remove(), 500);
-            }, 3000);
+            const [toast, setToast] = useState({ visible: false, msg: '', isAlert: false });
+
+            const showToast = useCallback((msg, isAlert = false) => {
+                setToast({ visible: true, msg, isAlert });
+                setTimeout(() => setToast({ visible: false, msg: '', isAlert: false }), 4000);
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('markov_os_state_v11_elite', JSON.stringify(state));
+            }, [state]);
+
+            useEffect(() => {
+                const today = new Date().toDateString();
+                if (state.lastLoginDate !== today) {
+                    setState(prev => {
+                        const missedPM = !prev.dailyTasks.pm;
+                        const missedEng = !prev.dailyTasks.english;
+                        const missedBody = !prev.dailyTasks.body;
+                        let rrDrop = 0;
+                        if(missedPM || missedBody) rrDrop = 5;
+
+                        return {
+                            ...prev,
+                            currentMode: 'norm',
+                            missedYesterday: { pm: missedPM, english: missedEng, body: missedBody },
+                            dailyTasks: INITIAL_STATE.dailyTasks,
+                            energyMetrics: { ...prev.energyMetrics, sleep: 0 },
+                            languagePhrases: [],
+                            contentLadder: 0,
+                            lastLoginDate: today,
+                            stats: { 
+                                ...prev.stats, 
+                                daysLogged: prev.stats.daysLogged + 1, 
+                                returnRate: Math.max(0, Math.min(100, prev.stats.returnRate - rrDrop + 2)) 
+                            }
+                        }
+                    });
+                    showToast("Новый цикл. Система перезапущена. ⚡");
+                }
+            }, [state.lastLoginDate, showToast]);
+
+            const update = useCallback((key, value) => {
+                setState(prev => {
+                    if (typeof value === 'object' && !Array.isArray(value) && value !== null && prev[key]) {
+                        return { ...prev, [key]: { ...prev[key], ...value } };
+                    }
+                    return { ...prev, [key]: value };
+                });
+            }, []);
+
+            const toggleTask = useCallback((taskId, category, xpReward = 10, forceState = null) => {
+                AudioEngine.playClick();
+                triggerHaptic(15);
+                setState(prev => {
+                    const isDone = forceState !== null ? forceState : !prev.dailyTasks[taskId];
+                    // Если состояние не изменилось (например, повторный вызов принудительного стейта)
+                    if (forceState !== null && prev.dailyTasks[taskId] === forceState) return prev;
+
+                    let newXp = prev.stats.xp;
+                    let newCatVal = prev.stats.categories[category] || 0;
+
+                    if (isDone) {
+                        newXp += xpReward;
+                        newCatVal = Math.min(100, newCatVal + (xpReward / 1.5));
+                        if(xpReward > 0) showToast(`+${xpReward} XP. Синхронизация. ✨`);
+                    } else {
+                        newXp = Math.max(0, newXp - xpReward);
+                        newCatVal = Math.max(0, newCatVal - (xpReward / 1.5));
+                    }
+
+                    const newLevel = Math.floor(newXp / 200) + 1;
+                    
+                    return {
+                        ...prev,
+                        dailyTasks: { ...prev.dailyTasks, [taskId]: isDone },
+                        stats: { 
+                            ...prev.stats, 
+                            xp: newXp, 
+                            level: newLevel, 
+                            categories: { ...prev.stats.categories, [category]: newCatVal } 
+                        }
+                    };
+                });
+            }, [showToast]);
+
+            const saveDailyNote = useCallback((text, source = '') => {
+                if (!text.trim()) return;
+                const prefix = source ? `[${source}] ` : '';
+                setState(prev => ({ ...prev, notes: { ...prev.notes, savedDaily: [...prev.notes.savedDaily, prefix + text] } }));
+                showToast(`Идея материализована. 📝`);
+                triggerHaptic(20);
+            }, [showToast]);
+
+            const addLanguagePhrase = useCallback((phrase) => {
+                if(!phrase.trim()) return;
+                setState(prev => ({ ...prev, languagePhrases: [...(prev.languagePhrases || []), phrase] }));
+                showToast("Нейронная связь закреплена. 🧠");
+                triggerHaptic(20);
+            }, [showToast]);
+
+            const copyToClipboard = useCallback((text) => {
+                triggerHaptic([10, 30]);
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text)
+                        .then(() => showToast("Скопировано. Готово к интеграции. ✨"))
+                        .catch(() => showToast("Ошибка копирования", true));
+                } else {
+                    let textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed";
+                    textArea.style.left = "-999999px";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        showToast("Скопировано. Готово к интеграции. ✨");
+                    } catch (err) {
+                        showToast("Ошибка копирования", true);
+                    }
+                    textArea.remove();
+                }
+            }, [showToast]);
+
+            return { state, setState, update, toggleTask, saveDailyNote, addLanguagePhrase, copyToClipboard, toast, showToast };
         }
 
-        function ButtonHTML(text, variant = 'primary', icon = null, onClickStr = '') {
-            const variants = {
-                primary: `bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0a0a0a] font-black shadow-[0_0_20px_rgba(251,191,36,0.15)] hover:brightness-110 border border-amber-300/40`,
-                secondary: `bg-[#1a1a1a] text-amber-50 hover:bg-[#222222] border border-[#333333] hover:border-amber-500/40 hover:shadow-[0_0_15px_rgba(251,191,36,0.1)]`,
-                ghost: `text-slate-400 hover:text-amber-400 hover:bg-[#1a1a1a]`,
-                danger: `bg-rose-950/30 text-rose-400 border border-rose-900/40 hover:bg-rose-900/50 hover:text-rose-200`
-            };
-            const iconHtml = icon ? `<i data-lucide="${icon}" class="w-5 h-5 ${variant === 'primary' ? 'text-[#0a0a0a]' : ''}"></i>` : '';
-            return `<button onclick="${onClickStr}" class="flex items-center justify-center gap-2 md:gap-3 px-4 md:px-6 py-3.5 md:py-4 rounded-2xl transition-all duration-300 active:scale-[0.98] w-full sm:w-auto ${variants[variant]}">
-                        ${iconHtml} <span class="truncate">${text}</span>
-                    </button>`;
-        }
-
-        function CheckItemHTML(taskId, category, xp, label, subLabel, anchor = '') {
-            const checked = state.dailyTasks[taskId];
-            const bgClass = checked ? 'bg-amber-500/5 border-amber-500/30 shadow-[0_0_25px_rgba(251,191,36,0.08)]' : 'bg-[#0f0f0f] border-[#262626] hover:border-[#3a3a3a] hover:bg-[#1a1a1a]';
-            const textClass = checked ? 'text-slate-500 line-through decoration-amber-500/50' : 'text-slate-200';
-            const iconClass = checked ? 'bg-gradient-to-br from-yellow-400 to-amber-600 border-transparent text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.5)] scale-110' : 'border-slate-600 group-hover:border-amber-500/50';
-            
-            return `
-            <div class="flex items-start gap-3 md:gap-4 p-4 md:p-5 rounded-2xl transition-all duration-300 cursor-pointer group border min-h-[76px] relative overflow-hidden ${bgClass}" 
-                 onclick="toggleTask('${taskId}', '${category}', ${xp})">
-                ${checked ? '<div class="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 animate-shimmer pointer-events-none"></div>' : ''}
-                <div class="mt-0.5 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center border-[2.5px] transition-all duration-500 flex-shrink-0 relative z-10 ${iconClass}">
-                    ${checked ? '<i data-lucide="check" class="w-4 h-4" stroke-width="4"></i>' : ''}
-                </div>
-                <div class="flex flex-col flex-1 justify-center relative z-10 min-w-0">
-                    ${anchor ? `<span class="text-amber-500 font-black text-[9px] md:text-[10px] uppercase tracking-widest mb-1 flex items-center gap-1 truncate"><i data-lucide="anchor" class="w-3 h-3 flex-shrink-0"></i> [Якорь: ${anchor}]</span>` : ''}
-                    <span class="font-bold transition-colors duration-300 text-base md:text-lg leading-tight break-words pr-2 ${textClass}">${label}</span>
-                    ${subLabel ? `<span class="text-xs md:text-sm mt-1.5 transition-colors font-medium leading-snug break-words pr-2 ${checked ? 'text-slate-600' : 'text-slate-400'}">${subLabel}</span>` : ''}
-                </div>
-                ${!checked && xp > 0 ? `<span class="text-[10px] md:text-[11px] font-mono font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 md:px-3 py-1 md:py-1.5 rounded-full flex-shrink-0 mt-1 relative z-10 hidden sm:flex">+${xp} XP</span>` : ''}
-            </div>`;
-        }
-
-        const activeTimers = {}; // Store global references to manage intervals
-
-        function renderFocusTimer(id, defaultMins, taskName) {
-            return `
-            <div id="ft-${id}-closed" class="flex flex-wrap gap-2 md:gap-3 mt-4">
-                <button onclick="startTimerUI('${id}', ${defaultMins}, false)" class="text-[11px] md:text-xs flex items-center gap-1.5 md:gap-2 font-bold text-slate-300 bg-[#1a1a1a] border border-[#333333] px-3 md:px-4 py-2.5 md:py-3 rounded-xl hover:bg-[#222222] hover:text-amber-400 transition-all">
-                    <i data-lucide="timer" class="w-4 h-4 text-amber-500"></i> Фокус ${defaultMins} мин
-                </button>
-                ${defaultMins > 15 ? `
-                <button onclick="startTimerUI('${id}', 2, true)" class="text-[11px] md:text-xs flex items-center gap-1.5 md:gap-2 font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 md:px-4 py-2.5 md:py-3 rounded-xl hover:bg-amber-500/20 shadow-[0_0_10px_rgba(251,191,36,0.1)] transition-all">
-                    <i data-lucide="zap" class="w-4 h-4"></i> Микро-старт (2 мин)
-                </button>` : ''}
+        const Card = ({ children, className = "", interactive = false, glowing = false }) => (
+            <div className={`
+                ${THEME.panel} border ${THEME.panelBorder} rounded-[2rem] p-5 md:p-8 shadow-2xl flex flex-col
+                ${interactive ? 'cursor-pointer hover:border-amber-500/40 transition-all duration-300' : ''} 
+                ${glowing ? 'relative overflow-hidden' : ''}
+                ${className}
+            `}>
+                {glowing && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-70"></div>}
+                {children}
             </div>
-            <div id="ft-${id}-open" class="hidden mt-4 md:mt-5 p-5 md:p-8 bg-[#0f0f0f] border border-[#262626] rounded-2xl md:rounded-3xl flex flex-col items-center relative overflow-hidden">
-                <div class="flex justify-between w-full mb-6 md:mb-8 items-center relative z-10">
-                    <span class="text-slate-300 font-black text-xs md:text-sm flex items-center gap-2 uppercase tracking-wider truncate">
-                        <i data-lucide="target" class="w-[18px] h-[18px] text-amber-500 flex-shrink-0"></i> <span id="ft-${id}-title" class="truncate">${taskName}</span>
-                    </span>
-                    <button onclick="closeTimerUI('${id}')" class="text-slate-500 hover:text-white p-2 bg-[#1a1a1a] rounded-xl transition-colors flex-shrink-0"><i data-lucide="x" class="w-[18px] h-[18px]"></i></button>
-                </div>
-                <div class="relative w-40 h-40 md:w-48 md:h-48 flex items-center justify-center mb-8 md:mb-10">
-                    <svg class="w-full h-full -rotate-90 absolute drop-shadow-md" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="45" fill="none" stroke="#262626" stroke-width="6"></circle>
-                        <circle id="ft-${id}-circle" cx="50" cy="50" r="45" fill="none" stroke="#fbbf24" stroke-width="6" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="0" class="transition-all duration-1000 ease-linear drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]"></circle>
-                    </svg>
-                    <div id="ft-${id}-display" class="text-4xl md:text-5xl font-mono font-black text-white relative z-10 drop-shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-tighter">00:00</div>
-                </div>
-                <div class="flex gap-3 md:gap-4 w-full max-w-[300px] relative z-10">
-                    <button id="ft-${id}-btn" onclick="toggleTimer('${id}')" class="flex-1 py-3 md:py-4 rounded-xl font-black text-base md:text-lg flex justify-center items-center gap-2 md:gap-3 transition-all bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:brightness-110">
-                        <i data-lucide="play" class="w-5 h-5"></i> Фокус
-                    </button>
-                    <button onclick="resetTimer('${id}')" class="px-4 md:px-5 py-3 md:py-4 rounded-xl bg-[#0f0f0f] border border-[#262626] text-slate-400 hover:text-white hover:border-slate-500 transition-all">
-                        <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
-                    </button>
-                </div>
-                <p id="ft-${id}-msg" class="text-xs md:text-sm text-slate-400 mt-6 md:mt-8 font-medium text-center leading-relaxed px-2 break-words"></p>
-            </div>`;
-        }
+        );
 
-        // Logic for timers using Date.now()
-        function startTimerUI(id, mins, isMicro) {
-            document.getElementById(`ft-${id}-closed`).classList.add('hidden');
-            document.getElementById(`ft-${id}-open`).classList.remove('hidden');
-            document.getElementById(`ft-${id}-title`).innerText = isMicro ? 'Атомный Старт' : document.getElementById(`ft-${id}-title`).innerText;
-            
-            const msg = isMicro ? "Мозг не сопротивляется 2 минутам. Просто начни." : "Самое сложное — начать. Барьер пройден.";
-            document.getElementById(`ft-${id}-msg`).innerText = msg;
-            
-            activeTimers[id] = {
-                totalSeconds: mins * 60,
-                timeLeft: mins * 60,
-                isActive: false,
-                endTime: 0,
-                interval: null
+        const Button = ({ children, variant = 'primary', className = "", onClick, icon: IconComponent }) => {
+            const variants = {
+                primary: `${THEME.accentBg} text-[#0a0a0a] font-black shadow-[0_0_20px_rgba(251,191,36,0.15)] ${THEME.accentHover} border border-amber-300/40`,
+                secondary: `bg-[#1a1a1a] text-amber-50 hover:bg-[#222222] border border border-[#333333] hover:border-amber-500/40 hover:shadow-[0_0_15px_rgba(251,191,36,0.1)]`,
+                ghost: `text-slate-400 hover:text-amber-400 hover:bg-[#1a1a1a]`,
+                danger: `bg-rose-950/30 text-rose-400 border border border-rose-900/40 hover:bg-rose-900/50 hover:text-rose-200`
             };
-            updateTimerDisplay(id);
-            if(isMicro) updateState({ currentMode: 'min' }); // Auto switch to min mode on micro start
-        }
+            return (
+                <button onClick={() => { triggerHaptic(10); if(onClick) onClick(); }} className={`flex items-center justify-center gap-2 md:gap-3 px-4 md:px-6 py-3.5 md:py-4 rounded-2xl transition-all duration-300 active:scale-[0.98] touch-manipulation ${variants[variant]} ${className}`}>
+                    {IconComponent && <IconComponent size={20} className={variant === 'primary' ? 'text-[#0a0a0a]' : ''} />}
+                    <span className="truncate">{children}</span>
+                </button>
+            );
+        };
 
-        function closeTimerUI(id) {
-            if(activeTimers[id]) clearInterval(activeTimers[id].interval);
-            document.getElementById(`ft-${id}-closed`).classList.remove('hidden');
-            document.getElementById(`ft-${id}-open`).classList.add('hidden');
-        }
+        const NumericInput = ({ label, value, onChange, min=0, max=10, step=1, hint, color="accent" }) => {
+            const handleDec = () => { triggerHaptic(10); onChange(Math.max(min, Number(value) - step)); };
+            const handleInc = () => { triggerHaptic(10); onChange(Math.min(max, Number(value) + step)); };
+            const handleChange = (e) => {
+                let val = e.target.value;
+                if (val === '') return onChange('');
+                val = Number(val);
+                if (!isNaN(val)) onChange(Math.min(max, Math.max(min, val)));
+            };
 
-        function toggleTimer(id) {
-            const t = activeTimers[id];
-            if(!t) return;
-            const btn = document.getElementById(`ft-${id}-btn`);
+            return (
+                <div className="flex flex-col gap-2 w-full">
+                    <div className="flex flex-wrap justify-between items-end text-sm mb-1 px-2">
+                        <span className={`${THEME.textMuted} font-bold tracking-wide`}>{label} {hint && <span className="text-xs opacity-50 ml-1 font-normal break-words">({hint})</span>}</span>
+                    </div>
+                    <div className="flex items-center gap-1 bg-[#0f0f0f] border border-[#262626] p-1.5 rounded-2xl w-full shadow-inner">
+                        <button onClick={handleDec} className="p-3 md:p-4 rounded-xl bg-[#1a1a1a] text-slate-400 hover:text-amber-400 hover:bg-[#222222] transition-all active:scale-95 touch-manipulation flex-shrink-0">
+                            <Minus size={20} />
+                        </button>
+                        <input 
+                            type="number" value={value} onChange={handleChange} min={min} max={max} step={step}
+                            className={`flex-1 bg-transparent text-center text-2xl md:text-3xl font-mono font-black focus:outline-none transition-colors w-full min-w-0 ${color === 'red' ? 'text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.4)]' : 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]'}`}
+                        />
+                        <button onClick={handleInc} className="p-3 md:p-4 rounded-xl bg-[#1a1a1a] text-slate-400 hover:text-amber-400 hover:bg-[#222222] transition-all active:scale-95 touch-manipulation flex-shrink-0">
+                            <Plus size={20} />
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const CheckItem = ({ checked, onChange, label, subLabel, xpBadge, anchor }) => (
+            <div className={`flex items-start gap-3 md:gap-4 p-4 md:p-5 rounded-2xl transition-all duration-300 cursor-pointer group border touch-manipulation min-h-[76px] relative overflow-hidden ${checked ? 'bg-amber-500/5 border-amber-500/30 shadow-[0_0_25px_rgba(251,191,36,0.08)]' : 'bg-[#0f0f0f] border-[#262626] hover:border-[#3a3a3a] hover:bg-[#1a1a1a]'}`} onClick={onChange}>
+                {checked && <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-amber-500/0 animate-[shimmer_2s_infinite]"></div>}
+                <div className={`mt-0.5 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center border-[2.5px] transition-all duration-500 flex-shrink-0 relative z-10 ${checked ? 'bg-gradient-to-br from-yellow-400 to-amber-600 border-transparent text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.5)] scale-110' : 'border-slate-600 group-hover:border-amber-500/50'}`}>
+                    {checked && <Check size={16} strokeWidth={4} />}
+                </div>
+                <div className="flex flex-col flex-1 justify-center relative z-10 min-w-0">
+                    {anchor && <span className="text-amber-500 font-black text-[9px] md:text-[10px] uppercase tracking-widest mb-1 flex items-center gap-1 truncate"><Anchor size={10} className="flex-shrink-0"/> [Якорь: {anchor}]</span>}
+                    <span className={`font-bold transition-colors duration-300 text-base md:text-lg leading-tight break-words pr-2 ${checked ? 'text-slate-500 line-through decoration-amber-500/50' : 'text-slate-200'}`}>{label}</span>
+                    {subLabel && <span className={`text-xs md:text-sm mt-1.5 transition-colors font-medium leading-snug break-words pr-2 ${checked ? 'text-slate-600' : 'text-slate-400'}`}>{subLabel}</span>}
+                </div>
+                {xpBadge && !checked && (
+                    <span className="text-[10px] md:text-[11px] font-mono font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 md:px-3 py-1 md:py-1.5 rounded-full flex-shrink-0 mt-1 relative z-10 hidden sm:flex">+{xpBadge} XP</span>
+                )}
+            </div>
+        );
+
+        const TextInput = ({ value, onChange, placeholder, multiline = false, className="" }) => {
+            const baseClasses = `w-full bg-[#0f0f0f] border border-[#262626] rounded-2xl p-4 md:p-5 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/60 focus:ring-1 focus:ring-amber-500/60 transition-all resize-none shadow-inner text-sm md:text-base font-medium leading-relaxed ${className}`;
+            return multiline ? (
+                <textarea rows={4} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={baseClasses} />
+            ) : (
+                <input type="text" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className={baseClasses} />
+            );
+        };
+
+        const TipCard = ({ text, title="Принцип системы", icon: IconComponent = Zap }) => (
+            <div className="bg-gradient-to-r from-[#121212] to-[#0f0f0f] border border-[#262626] rounded-2xl p-4 md:p-6 flex gap-4 md:gap-5 items-start relative overflow-hidden mb-6 md:mb-8 shadow-md">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-amber-400 to-yellow-600"></div>
+                <div className="p-2.5 md:p-3 bg-amber-500/10 rounded-xl flex-shrink-0 border border-amber-500/20">
+                    <IconComponent className="text-amber-400" size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <h4 className="text-[10px] md:text-xs font-black text-amber-400 uppercase tracking-widest mb-1.5 md:mb-2 opacity-90 truncate">{title}</h4>
+                    <p className="text-sm md:text-base text-slate-300 leading-relaxed font-medium break-words">{text}</p>
+                </div>
+            </div>
+        );
+
+        const MotivationCard = ({ text, title="Математика успеха" }) => (
+            <div className="bg-gradient-to-r from-amber-500/10 to-yellow-600/5 border border-amber-500/30 rounded-2xl p-5 md:p-6 flex flex-col relative overflow-hidden shadow-[0_0_20px_rgba(251,191,36,0.05)]">
+                <div className="flex items-center gap-3 mb-3">
+                    <Crown className="text-amber-400" size={20}/>
+                    <h4 className="text-xs md:text-sm font-black text-amber-400 uppercase tracking-widest truncate">{title}</h4>
+                </div>
+                <p className="text-sm md:text-base text-slate-200 leading-relaxed font-medium break-words">{text}</p>
+            </div>
+        );
+
+        const FocusTimer = ({ defaultMinutes, taskName, taskId, category, xpReward, onCompleteTask }) => {
+            const [timeLeft, setTimeLeft] = useState(defaultMinutes * 60);
+            const [isActive, setIsActive] = useState(false);
+            const [isOpen, setIsOpen] = useState(false);
+            const [isMicro, setIsMicro] = useState(false);
             
-            if(t.isActive) {
-                // Pause
-                t.isActive = false;
-                clearInterval(t.interval);
-                btn.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> Фокус`;
-                btn.className = "flex-1 py-3 md:py-4 rounded-xl font-black text-base md:text-lg flex justify-center items-center gap-2 md:gap-3 transition-all bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:brightness-110";
-            } else {
-                // Start/Resume
-                t.isActive = true;
-                t.endTime = Date.now() + (t.timeLeft * 1000);
-                btn.innerHTML = `<i data-lucide="pause" class="w-5 h-5 text-slate-200"></i> Пауза`;
-                btn.className = "flex-1 py-3 md:py-4 rounded-xl font-black text-base md:text-lg flex justify-center items-center gap-2 md:gap-3 transition-all bg-[#1a1a1a] text-slate-200 border border-[#333333]";
-                
-                t.interval = setInterval(() => {
-                    const now = Date.now();
-                    t.timeLeft = Math.max(0, Math.ceil((t.endTime - now) / 1000));
-                    updateTimerDisplay(id);
-                    if(t.timeLeft <= 0) {
-                        clearInterval(t.interval);
-                        t.isActive = false;
-                        showToast("Фокус завершен. Синхронизация.", false);
+            const totalSeconds = useMemo(() => (isMicro ? 2 : defaultMinutes) * 60, [isMicro, defaultMinutes]);
+
+            useEffect(() => {
+                setTimeLeft(totalSeconds);
+            }, [totalSeconds]);
+
+            useEffect(() => {
+                let interval = null;
+                if (isActive && timeLeft > 0) {
+                    interval = setInterval(() => {
+                        setTimeLeft(prev => prev - 1);
+                        if (timeLeft % 10 === 0) AudioEngine.playTick(); // Легкий фоновый клик раз в 10 сек
+                    }, 1000);
+                } else if (timeLeft === 0 && isActive) {
+                    setIsActive(false);
+                    clearInterval(interval);
+                    AudioEngine.playSuccess();
+                    triggerHaptic([100, 50, 100]);
+                    if (onCompleteTask) onCompleteTask(taskId, category, xpReward, true);
+                    setIsOpen(false);
+                }
+                return () => clearInterval(interval);
+            }, [isActive, timeLeft, taskId, category, xpReward, onCompleteTask]);
+
+            const toggle = () => { triggerHaptic(15); setIsActive(!isActive); };
+            const reset = () => { triggerHaptic(10); setIsActive(false); setTimeLeft(totalSeconds); };
+            
+            const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const s = (timeLeft % 60).toString().padStart(2, '0');
+            const progress = ((totalSeconds - timeLeft) / totalSeconds) * 100;
+
+            if (!isOpen) {
+                return (
+                    <div className="flex flex-wrap gap-2 md:gap-3 mt-4">
+                        <button onClick={() => { triggerHaptic(10); setIsMicro(false); setIsOpen(true); }} className="text-[11px] md:text-xs flex items-center gap-1.5 md:gap-2 font-bold text-slate-300 bg-[#1a1a1a] border border-[#333333] px-3 md:px-4 py-2.5 md:py-3 rounded-xl hover:bg-[#222222] hover:text-amber-400 transition-all touch-manipulation">
+                            <Timer size={16} className="text-amber-500"/> Фокус {defaultMinutes} мин
+                        </button>
+                        {defaultMinutes > 15 && (
+                            <button onClick={() => { triggerHaptic(15); setIsMicro(true); setIsOpen(true); }} className="text-[11px] md:text-xs flex items-center gap-1.5 md:gap-2 font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 md:px-4 py-2.5 md:py-3 rounded-xl hover:bg-amber-500/20 transition-all touch-manipulation shadow-[0_0_10px_rgba(251,191,36,0.1)]">
+                                <Zap size={16} /> Микро-старт (2 мин)
+                            </button>
+                        )}
+                    </div>
+                );
+            }
+
+            return (
+                <div className="mt-4 md:mt-5 p-5 md:p-8 bg-[#0f0f0f] border border-[#262626] rounded-2xl md:rounded-3xl flex flex-col items-center relative overflow-hidden w-full">
+                    {isActive && <div className="absolute inset-0 bg-amber-500/5 animate-pulse pointer-events-none"></div>}
+                    <div className="flex justify-between w-full mb-6 md:mb-8 items-center relative z-10">
+                        <span className="text-slate-300 font-black text-xs md:text-sm flex items-center gap-2 uppercase tracking-wider truncate">
+                            <Target size={18} className="text-amber-500 flex-shrink-0"/> <span className="truncate">{isMicro ? 'Атомный Старт' : taskName}</span>
+                        </span>
+                        <button onClick={() => { triggerHaptic(10); setIsActive(false); setIsOpen(false); }} className="text-slate-500 hover:text-white p-2 bg-[#1a1a1a] rounded-xl transition-colors flex-shrink-0"><X size={18}/></button>
+                    </div>
+                    
+                    <div className="relative w-40 h-40 md:w-48 md:h-48 flex items-center justify-center mb-8 md:mb-10">
+                        <svg className="w-full h-full -rotate-90 absolute drop-shadow-md" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#262626" strokeWidth="6" />
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#fbbf24" strokeWidth="6" strokeLinecap="round" strokeDasharray="283" strokeDashoffset={283 - (283 * progress) / 100} className="transition-all duration-1000 ease-linear drop-shadow-[0_0_15px_rgba(251,191,36,0.5)]" />
+                        </svg>
+                        <div className="text-4xl md:text-5xl font-mono font-black text-white relative z-10 drop-shadow-[0_0_15px_rgba(251,191,36,0.4)] tracking-tighter">{m}:{s}</div>
+                    </div>
+
+                    <div className="flex gap-3 md:gap-4 w-full max-w-[300px] relative z-10">
+                        <button onClick={toggle} className={`flex-1 py-3 md:py-4 rounded-xl font-black text-base md:text-lg flex justify-center items-center gap-2 md:gap-3 transition-all active:scale-95 touch-manipulation ${isActive ? 'bg-[#1a1a1a] text-slate-200 border border-[#333333]' : 'bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:brightness-110'}`}>
+                            {isActive ? <Pause size={20}/> : <Play size={20}/>} {isActive ? 'Пауза' : 'Фокус'}
+                        </button>
+                        <button onClick={reset} className="px-4 md:px-5 py-3 md:py-4 rounded-xl bg-[#0f0f0f] border border-[#262626] text-slate-400 hover:text-white hover:border-slate-500 transition-all active:scale-95 touch-manipulation">
+                            <RotateCcw size={20}/>
+                        </button>
+                    </div>
+                    <p className="text-xs md:text-sm text-slate-400 mt-6 md:mt-8 font-medium text-center leading-relaxed px-2 break-words">
+                        {timeLeft <= 120 && totalSeconds > 120 ? "Самое сложное — начать. Барьер пройден." : "Мозг не сопротивляется 2 минутам. Просто начни."}
+                    </p>
+                </div>
+            );
+        };
+
+        const BreathingTimer = ({ type = 'morning', onComplete }) => {
+            const [isActive, setIsActive] = useState(false);
+            const TOTAL_SECONDS = 180;
+            const [timeElapsed, setTimeElapsed] = useState(0);
+            
+            const [phaseName, setPhaseName] = useState('Готов?');
+            const [phaseSecondsLeft, setPhaseSecondsLeft] = useState(0);
+            const [scale, setScale] = useState(1);
+            
+            useEffect(() => {
+                let interval;
+                if (isActive && timeElapsed < TOTAL_SECONDS) {
+                    interval = setInterval(() => {
+                        setTimeElapsed(prev => prev + 1);
+                        AudioEngine.playTick(); // Физический метроном для удержания ритма без глаз
+                    }, 1000);
+                } else if (timeElapsed >= TOTAL_SECONDS && isActive) {
+                    setIsActive(false);
+                    setPhaseName('Практика завершена.');
+                    setPhaseSecondsLeft(0);
+                    setScale(1);
+                    AudioEngine.playSuccess();
+                    if(onComplete) onComplete();
+                }
+                return () => clearInterval(interval);
+            }, [isActive, timeElapsed, onComplete]);
+
+            useEffect(() => {
+                if (!isActive) return;
+                const currentCycleSec = timeElapsed % (type === 'morning' ? 16 : 10);
+
+                if (type === 'morning') {
+                    if (currentCycleSec < 4) {
+                        if (currentCycleSec === 0) AudioEngine.playPhaseChange();
+                        setPhaseName('Вдох'); setPhaseSecondsLeft(4 - currentCycleSec); setScale(1.6);
+                    } else if (currentCycleSec < 8) {
+                        if (currentCycleSec === 4) AudioEngine.playPhaseChange();
+                        setPhaseName('Задержка'); setPhaseSecondsLeft(8 - currentCycleSec); setScale(1.6);
+                    } else if (currentCycleSec < 12) {
+                        if (currentCycleSec === 8) AudioEngine.playPhaseChange();
+                        setPhaseName('Выдох'); setPhaseSecondsLeft(12 - currentCycleSec); setScale(1);
+                    } else {
+                        if (currentCycleSec === 12) AudioEngine.playPhaseChange();
+                        setPhaseName('Задержка'); setPhaseSecondsLeft(16 - currentCycleSec); setScale(1);
                     }
-                }, 500); // 500ms for smoothness
-            }
-            lucide.createIcons();
-        }
+                } else {
+                    if (currentCycleSec < 4) {
+                        if (currentCycleSec === 0) AudioEngine.playPhaseChange();
+                        setPhaseName('Вдох'); setPhaseSecondsLeft(4 - currentCycleSec); setScale(1.5);
+                    } else {
+                        if (currentCycleSec === 4) AudioEngine.playPhaseChange();
+                        setPhaseName('Выдох'); setPhaseSecondsLeft(10 - currentCycleSec); setScale(1);
+                    }
+                }
+            }, [timeElapsed, isActive, type]);
 
-        function resetTimer(id) {
-            const t = activeTimers[id];
-            if(!t) return;
-            t.isActive = false;
-            clearInterval(t.interval);
-            t.timeLeft = t.totalSeconds;
-            const btn = document.getElementById(`ft-${id}-btn`);
-            btn.innerHTML = `<i data-lucide="play" class="w-5 h-5"></i> Фокус`;
-            btn.className = "flex-1 py-3 md:py-4 rounded-xl font-black text-base md:text-lg flex justify-center items-center gap-2 md:gap-3 transition-all bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:brightness-110";
-            updateTimerDisplay(id);
-            lucide.createIcons();
-        }
+            const toggle = () => { triggerHaptic(15); setIsActive(!isActive); };
+            const timeLeft = TOTAL_SECONDS - timeElapsed;
+            const m = Math.floor(timeLeft / 60);
+            const s = (timeLeft % 60).toString().padStart(2, '0');
 
-        function updateTimerDisplay(id) {
-            const t = activeTimers[id];
-            if(!t) return;
-            const m = Math.floor(t.timeLeft / 60).toString().padStart(2, '0');
-            const s = (t.timeLeft % 60).toString().padStart(2, '0');
-            document.getElementById(`ft-${id}-display`).innerText = `${m}:${s}`;
-            
-            const progress = ((t.totalSeconds - t.timeLeft) / t.totalSeconds) * 100;
-            const dashoffset = 283 - (283 * progress) / 100;
-            document.getElementById(`ft-${id}-circle`).style.strokeDashoffset = dashoffset;
-        }
+            const explanation = type === 'morning' 
+                ? "Box Breathing (4-4-4-4). Баланс симпатической и парасимпатической системы. Аудио-метроном активен."
+                : "Стимуляция блуждающего нерва (Вдох 4с / Выдох 6с). Снижение пульса и кортизола перед сном.";
 
-        // --- 5. VIEWS ---
-        function ViewDashboard() {
-            const dateStr = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
-            const isMin = state.currentMode === 'min' || state.currentMode === 'recovery';
-            const isWeekend = state.currentMode === 'saturday' || state.currentMode === 'sunday';
-            const burnout = isBurnout();
-            const config = getActiveTimeConfig();
-            
-            let modesHtml = Object.values(MODES).map(m => {
-                const active = state.currentMode === m.id;
-                const cls = active ? 'bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.3)]' : 'text-slate-500 hover:text-slate-200 hover:bg-[#1a1a1a]';
-                return `<button onclick="updateState({currentMode: '${m.id}'}); showToast('Режим: ${m.label}');" class="px-3 md:px-5 py-2.5 md:py-3.5 rounded-xl text-xs sm:text-sm md:text-base font-black whitespace-nowrap transition-all uppercase tracking-wider ${cls}">${m.label}</button>`;
-            }).join('');
-
-            let tasksHtml = '';
-            if (state.currentMode === 'saturday') {
-                tasksHtml = `
-                <div class="p-6 md:p-10 bg-gradient-to-b from-[#121212] to-[#0f0f0f] rounded-2xl md:rounded-3xl border border-[#262626] text-center shadow-inner relative overflow-hidden">
-                    <i data-lucide="moon" class="mx-auto text-slate-500 mb-4 md:mb-6 w-12 h-12"></i>
-                    <h3 class="text-2xl md:text-3xl font-black text-white mb-3 md:mb-4 tracking-tight">Я — СОЗДАТЕЛЬ. Суббота.</h3>
-                    <p class="text-slate-400 font-medium leading-relaxed max-w-md mx-auto text-sm md:text-lg mb-6 break-words">Карьера и тяжелые тренировки отключены. Творчество (Suno), отдых и разгрузка. Лимит 4500 ккал.</p>
-                    ${ButtonHTML('Смотреть план', 'secondary', null, "updateState({currentTab: 'schedule'})")}
-                </div>`;
-            } else if (state.currentMode === 'sunday') {
-                tasksHtml = `
-                <div class="space-y-4">
-                    ${CheckItemHTML('pm', 'pm', 10, 'План Недели (Магнитная доска)', 'Обновить задачи и фокус.', 'Пробуждение')}
-                    ${CheckItemHTML('content', 'content', 10, 'Контент план', 'Обдумать идеи на ПН-ПТ.', 'Обед')}
-                </div>`;
-            } else {
-                tasksHtml = `
-                <div class="space-y-6 md:space-y-8">
-                    <div>
-                        <h3 class="text-xs md:text-sm font-black text-amber-500 uppercase tracking-widest mb-3 md:mb-4 flex items-center gap-2 truncate"><i data-lucide="layers" class="w-4 h-4"></i> Я — Структура</h3>
-                        <div class="space-y-3 md:space-y-4">
-                            <div class="bg-[#0f0f0f] border border-[#262626] rounded-2xl md:rounded-3xl p-2 md:p-3 pb-4 md:pb-5 shadow-sm">
-                                ${CheckItemHTML('pm', 'pm', isMin?10:15, 'Project Management', `Главный приоритет: ${config.pmTime} мин.`, 'Конец Английского')}
-                                ${!state.dailyTasks.pm ? `<div class="px-3 md:px-5">${renderFocusTimer('pm', config.pmTime, 'PM Deep Work')}</div>` : ''}
-                            </div>
-                            <div class="bg-[#0f0f0f] border border-[#262626] rounded-2xl md:rounded-3xl p-2 md:p-3 pb-4 md:pb-5 shadow-sm">
-                                ${CheckItemHTML('english', 'english', 10, 'English Speaking', `Практика: ${config.engTime} мин.`, 'Завтрак')}
-                                ${!state.dailyTasks.english ? `<div class="px-3 md:px-5">${renderFocusTimer('eng', config.engTime, 'English Practice')}</div>` : ''}
-                            </div>
+            return (
+                <div className="bg-[#0f0f0f] border border-[#262626] p-5 md:p-10 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center relative overflow-hidden shadow-inner min-h-[350px] md:min-h-[400px] w-full">
+                    <div className="absolute top-4 md:top-5 left-4 md:left-5 text-[9px] md:text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 md:gap-2 bg-[#1a1a1a] px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-[#333333]">
+                        <Wind size={14} className="text-amber-400 hidden sm:block"/>
+                        {type === 'morning' ? 'Box Breathing' : 'Relax Breathing'}
+                    </div>
+                    <div className="absolute top-4 md:top-5 right-4 md:right-5 text-xs md:text-sm font-mono font-black text-amber-400 bg-amber-500/10 px-2 md:px-3 py-1 md:py-1.5 rounded-lg border border-amber-500/30 shadow-[0_0_10px_rgba(251,191,36,0.1)]">
+                        {m}:{s}
+                    </div>
+                    
+                    <div className="relative w-48 h-48 md:w-64 md:h-64 flex items-center justify-center mb-8 md:mb-10 mt-8 md:mt-6">
+                        <div className="absolute rounded-full bg-amber-500/10 blur-3xl transition-all ease-in-out" style={{ width: '100%', height: '100%', transform: `scale(${scale})`, transitionDuration: '1000ms' }}></div>
+                        <div className="relative z-10 rounded-full border-[3px] border-amber-500/40 bg-gradient-to-br from-[#121212] to-[#050505] flex flex-col items-center justify-center transition-all ease-in-out shadow-[0_0_30px_rgba(251,191,36,0.1)]" style={{ width: '120px', height: '120px', transform: `scale(${scale})`, transitionDuration: '1000ms' }}>
+                            {isActive ? <div className="text-5xl md:text-6xl font-black font-mono text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.6)]">{phaseSecondsLeft}</div> : <Wind className="text-slate-600" size={40} />}
                         </div>
                     </div>
-                    <div>
-                        <h3 class="text-xs md:text-sm font-black text-amber-500 uppercase tracking-widest mb-3 md:mb-4 flex items-center gap-2 truncate"><i data-lucide="dumbbell" class="w-4 h-4"></i> Я — Атлет</h3>
-                        ${CheckItemHTML('body', 'body', 20, isMin ? "Легкая растяжка (10 мин)" : "Личная Тренировка + Аудиокнига", isMin ? "Снять напряжение. Микро-старт." : "Фундамент энергии (16:00 - 22:30).", "Окна между клиентами")}
-                    </div>
-                </div>`;
-            }
 
-            const burnoutWarning = burnout ? `
-                <div class="bg-rose-950/40 border border-rose-900/50 rounded-2xl p-4 md:p-6 flex flex-col sm:flex-row items-start gap-4 md:gap-5 animate-pulse mb-8 shadow-[0_0_30px_rgba(251,113,133,0.1)]">
-                    <i data-lucide="shield-alert" class="w-7 h-7 text-rose-500 flex-shrink-0 sm:mt-1"></i>
-                    <div class="min-w-0">
-                        <h3 class="text-rose-400 font-black uppercase tracking-widest text-sm md:text-lg mb-1.5 md:mb-2 truncate">Burnout Shield: Активен</h3>
-                        <p class="text-xs md:text-sm text-slate-300 font-medium leading-relaxed break-words">Высокий стресс или недосып. Целевое время фокуса (PM/Eng) автоматически срезано на 50%. Сосредоточься на сохранении системы, а не на экспансии.</p>
+                    <div className={`text-3xl md:text-4xl font-black mb-4 md:mb-5 transition-colors duration-500 h-10 md:h-12 flex items-center tracking-tight ${isActive ? 'text-white drop-shadow-md' : 'text-slate-500'}`}>
+                        {phaseName}
                     </div>
+                    
+                    <p className="text-xs md:text-sm lg:text-base text-slate-400 text-center max-w-sm mb-8 md:mb-10 font-medium leading-relaxed bg-[#1a1a1a]/50 p-3 md:p-4 rounded-xl border border-[#262626] break-words">
+                        {explanation}
+                    </p>
+
+                    <Button variant={isActive ? 'secondary' : 'primary'} onClick={toggle} className="w-full max-w-[280px] text-base md:text-lg" icon={isActive ? Pause : Play}>
+                        {isActive ? 'Пауза' : (timeElapsed > 0 ? 'Продолжить' : 'Начать 3 минуты')}
+                    </Button>
                 </div>
-            ` : '';
+            );
+        };
 
-            return `
-            <div class="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
-                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-5 md:gap-6">
-                    <div class="w-full xl:w-auto">
-                        <h1 class="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Сегодня</h1>
-                        <p class="text-amber-400 font-mono mt-2 md:mt-3 capitalize text-sm sm:text-lg md:text-xl tracking-widest font-bold flex items-center gap-2 md:gap-3 drop-shadow-sm truncate"><i data-lucide="calendar" class="w-[18px] h-[18px] md:w-5 md:h-5"></i> ${dateStr}</p>
-                    </div>
-                    <div class="flex bg-[#0f0f0f] p-2 md:p-2.5 rounded-2xl border border-[#262626] overflow-x-auto w-full xl:w-auto hide-scrollbar shadow-inner gap-1.5 md:gap-2">
-                        ${modesHtml}
-                    </div>
-                </div>
+        const ManifestReader = ({ type }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            const data = MANIFESTS[type];
 
-                ${burnoutWarning}
-
-                <div class="bg-gradient-to-r from-amber-500/10 to-yellow-600/5 border border-amber-500/30 rounded-2xl p-5 md:p-6 flex flex-col relative overflow-hidden shadow-[0_0_20px_rgba(251,191,36,0.05)]">
-                    <div class="flex items-center gap-3 mb-3">
-                        <i data-lucide="crown" class="w-5 h-5 text-amber-400"></i>
-                        <h4 class="text-xs md:text-sm font-black text-amber-400 uppercase tracking-widest truncate">Математика успеха</h4>
-                    </div>
-                    <p class="text-sm md:text-base text-slate-200 leading-relaxed font-medium break-words">Пока 99% живут в реактивном хаосе, ты выполняешь алгоритм. Каждый час фокуса сегодня — это статус и капитал завтра.</p>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-                    <div class="glass-panel rounded-[2rem] p-5 md:p-8 flex flex-col flex-1">
-                        <div class="flex items-center justify-between mb-6 md:mb-8">
-                            <h2 class="text-xl sm:text-2xl md:text-3xl font-black text-white flex items-center gap-2 md:gap-3 tracking-tight uppercase truncate">
-                                <i data-lucide="activity" class="w-6 h-6 ${isMin ? 'text-rose-400' : 'text-amber-400'} flex-shrink-0"></i> 
-                                <span class="truncate">${isMin ? "Минимум Выживания" : isWeekend ? "Фокус Выходного" : "Главные Идентичности"}</span>
-                            </h2>
-                        </div>
-                        ${tasksHtml}
-                    </div>
-
-                    <div class="glass-panel rounded-[2rem] p-5 md:p-8 flex flex-col flex-1">
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 md:mb-8 gap-4 border-b border-[#262626] pb-5 md:pb-6">
-                            <h2 class="text-lg sm:text-xl md:text-2xl font-black text-white flex items-center gap-2 md:gap-3 tracking-tight uppercase truncate"><i data-lucide="shield" class="w-5 h-5 text-slate-400 flex-shrink-0"></i> <span class="truncate">Обязательная База</span></h2>
-                            ${!isMin ? `<button onclick="updateState({currentMode: 'min'}); showToast('Активирован протокол выживания.', true);" class="bg-rose-950/30 text-rose-400 border border-rose-900/40 hover:bg-rose-900/50 py-2.5 px-4 rounded-2xl text-[10px] md:text-xs uppercase tracking-widest font-black transition-all">Срезать до минимума</button>` : ''}
-                        </div>
-                        <div class="grid grid-cols-1 gap-5 md:gap-6">
-                            <div class="space-y-2.5 md:space-y-3 bg-[#0f0f0f] p-4 md:p-6 rounded-2xl md:rounded-3xl border border-[#262626] shadow-inner">
-                                <div class="flex items-center gap-3 mb-4 md:mb-6 pb-3 md:pb-4 border-b border-[#262626]">
-                                    <div class="p-2 md:p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20"><i data-lucide="compass" class="w-[18px] h-[18px] text-emerald-400"></i></div>
-                                    <span class="text-xs md:text-sm text-slate-300 font-black uppercase tracking-widest">Утро</span>
-                                </div>
-                                ${CheckItemHTML('waterAm', 'spirit', 5, 'Вода, свет, проветривание', '', 'Пробуждение')}
-                                ${CheckItemHTML('morningCharge', 'body', 5, 'Микро-зарядка (2 мин)', 'Разгон крови.', 'Вода')}
-                                ${CheckItemHTML('breathAm', 'spirit', 10, 'Дыхание (3 мин)', 'Box Breathing', 'Зарядка')}
+            return (
+                <div className={`mt-4 border transition-all duration-500 overflow-hidden ${isOpen ? 'bg-[#0f0f0f] border-amber-500/40 rounded-2xl md:rounded-3xl shadow-[0_10px_40px_rgba(251,191,36,0.05)]' : 'bg-[#0f0f0f]/50 border-[#262626] rounded-2xl hover:border-[#3a3a3a]'}`}>
+                    <button onClick={() => { triggerHaptic(10); setIsOpen(!isOpen); }} className="w-full flex items-center justify-between p-4 md:p-5 text-left touch-manipulation">
+                        <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                            <div className={`p-2 md:p-2.5 rounded-xl border transition-colors flex-shrink-0 ${isOpen ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-[#1a1a1a] border-[#333333] text-slate-400'}`}>
+                                <Flame size={20} />
                             </div>
-                            <div class="space-y-2.5 md:space-y-3 bg-[#0f0f0f] p-4 md:p-6 rounded-2xl md:rounded-3xl border border-[#262626] shadow-inner">
-                                <div class="flex items-center gap-3 mb-4 md:mb-6 pb-3 md:pb-4 border-b border-[#262626]">
-                                    <div class="p-2 md:p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20"><i data-lucide="moon" class="w-[18px] h-[18px] text-indigo-400"></i></div>
-                                    <span class="text-xs md:text-sm text-slate-300 font-black uppercase tracking-widest">Вечер</span>
-                                </div>
-                                ${(!isMin && !isWeekend) ? CheckItemHTML('cardio', 'body', 10, 'Кардио (20-25 мин)', 'Дома, перед едой.', 'Конец работы') : ''}
-                                ${CheckItemHTML('breathPm', 'spirit', 10, 'Дыхание (3 мин)', 'Сброс кортизола', 'Постель')}
+                            <div className="min-w-0 pr-2">
+                                <h4 className={`font-black tracking-widest text-xs md:text-sm uppercase transition-colors truncate ${isOpen ? 'text-amber-400' : 'text-slate-200'}`}>{data.title}</h4>
+                                <p className="text-[10px] md:text-xs text-slate-500 mt-1 font-medium truncate">{isOpen ? 'Свернуть текст' : 'Развернуть для чтения'}</p>
+                            </div>
+                        </div>
+                        <ChevronDown size={24} className={`text-slate-500 flex-shrink-0 transition-transform duration-500 ${isOpen ? 'rotate-180 text-amber-400' : ''}`}/>
+                    </button>
+                    
+                    <div className={`transition-all duration-700 ease-in-out px-4 md:px-6 lg:px-8 ${isOpen ? 'max-h-[2000px] pb-6 md:pb-8 opacity-100' : 'max-h-0 pb-0 opacity-0'}`}>
+                        <div className="pt-3 md:pt-4 border-t border-[#262626]">
+                            <p className="text-[10px] md:text-xs text-amber-500 font-bold uppercase tracking-widest mb-4 md:mb-6 bg-amber-500/10 p-2.5 md:p-3 rounded-lg border border-amber-500/20 inline-block break-words w-full">
+                                {data.instruction}
+                            </p>
+                            <div className="space-y-4 md:space-y-6">
+                                {data.text.split('\n\n').map((paragraph, idx) => (
+                                    <p key={idx} className="text-sm md:text-base lg:text-lg text-slate-300 font-medium leading-relaxed tracking-wide break-words whitespace-pre-wrap">
+                                        {paragraph}
+                                    </p>
+                                ))}
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>`;
-        }
+            );
+        };
 
-        function ViewSchedule() {
+        const DashboardView = ({ state, update, toggleTask, showToast }) => {
+            const todayDate = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
             const mode = state.currentMode;
-            let schedule = [];
-            
-            if (mode === 'saturday') {
-                schedule = [
-                    { time: '11:00', title: 'Мягкий подъём', desc: 'Вода, свет, дыхание. Без спешки.', icon: 'compass' },
-                    { time: '12:00', title: 'Разгрузка / Прогулка', desc: 'Хобби, прогулка. Отдых мозга.', icon: 'wind' },
-                    { time: '14:00', title: 'Творчество (Vibe Coding)', desc: 'Suno, идеи, легкий кодинг в кайф.', icon: 'music' },
-                    { time: '18:00', title: 'Контроль Рефида', desc: 'Лимит 4500 ккал. Отдых и еда.', icon: 'coffee', highlight: true },
-                    { time: '20:00', title: 'Восстановление', desc: 'Баня, массаж или аудиокнига.', icon: 'battery' },
-                    { time: '23:30', title: 'Мягкий вечер', desc: 'Уход, Вечерний Манифест. Сон.', icon: 'moon' }
-                ];
-            } else if (mode === 'sunday') {
-                schedule = [
-                    { time: '11:00', title: 'Подъем', desc: 'Мягкий вход в режим.', icon: 'compass' },
-                    { time: '12:00', title: 'Лёгкий разбор', desc: 'Что получилось на неделе, что слил.', icon: 'target' },
-                    { time: '13:00', title: 'План Недели', desc: 'Обновить магнитную доску.', icon: 'layout' },
-                    { time: '15:00', title: 'Контроль Рефида', desc: 'Лимит 4500 ккал.', icon: 'coffee', highlight: true },
-                    { time: '19:00', title: 'Контент-план', desc: 'Наброски на ПН-ПТ.', icon: 'pen-tool' },
-                    { time: '22:00', title: 'Мягкий вечер', desc: 'Ритуалы, аудиокнига, сонный режим.', icon: 'moon' }
-                ];
-            } else {
-                schedule = [
-                    { time: '10:30', title: 'Подъём', desc: 'Стабилизация режима. Вода, свет, проветривание.', icon: 'compass' },
-                    { time: '10:45', title: 'Дыхание (3 мин)', desc: 'Box Breathing. Снизить хаос, включить контроль.', icon: 'wind' },
-                    { time: '10:48', title: 'Сверх-Манифест', desc: 'Внутренний фокус. Заявление прав на реальность.', icon: 'flame' },
-                    { time: '10:50', title: 'Микро-зарядка', desc: 'Разгон крови (10 минут растяжки или 2 мин активности).', icon: 'zap' },
-                    { time: '11:00', title: 'Уход', desc: 'Внешний вид — часть личного бренда.', icon: 'sparkles' },
-                    { time: '11:10', title: 'Завтрак + Языковой Спринт', desc: '[Якорь: Еда]. Быстро, вкусно, полезно.', icon: 'utensils', highlight: true },
-                    { time: '11:35', title: 'Daily English Speaking', desc: 'Инструмент для глобального ИТ. Мозг разогрет.', icon: 'globe', highlight: true },
-                    { time: '12:05', title: 'Project Management [Фокус]', desc: '[Якорь: Конец English]. Час построения бизнес-систем.', icon: 'brain-circuit', special: true },
-                    { time: '13:05', title: 'ЛЕГАЛЬНЫЙ БЛОК: Перезагрузка', desc: 'Прокрастинация 40 мин. Префронтальная кора остывает.', icon: 'coffee' },
-                    { time: '13:45', title: 'Контент / Бренд + Obsidian', desc: 'Легкий, созидательный час. Творчество мощным потоком.', icon: 'edit-3', highlight: true },
-                    { time: '14:45', title: 'Буфер / Свободный слот', desc: 'Спокойно доделать то, что не успел.', icon: 'shield-check' },
-                    { time: '15:15', title: 'Финальный аккорд', desc: 'Взял сумку. В 15:20 выезд.', icon: 'briefcase' },
-                    { time: '16:00', title: 'Работа с клиентами + Тренировка', desc: 'Основная занятость + Личная тренировка в окнах.', icon: 'dumbbell' },
-                    { time: '22:30', title: 'Переход домой', desc: 'Отдых от клиентов.', icon: 'home' },
-                    { time: '23:00', title: 'Кардио дома', desc: '[Якорь: Конец работы] 20-25 минут перед едой.', icon: 'heart-pulse' },
-                    { time: '23:25', title: 'Душ / Восстановление', desc: 'Переключение в вечерний режим.', icon: 'battery' },
-                    { time: '23:45', title: 'Еда', desc: 'Восстановление после дня.', icon: 'check-circle-2' },
-                    { time: '00:10', title: 'Уход + План', desc: 'Внешний вид, гигиена. План на завтра.', icon: 'sparkles' },
-                    { time: '00:45', title: 'Вечерний Манифест + Дыхание', desc: 'Закрыть день. 3 мин дыхания.', icon: 'flame' },
-                    { time: '00:55', title: 'Аудиокнига', desc: 'Мягкий вход в сон.', icon: 'book-marked' },
-                    { time: '01:00', title: 'Сон', desc: 'Стабилизация. Восстановление.', icon: 'moon' }
-                ];
-            }
+            const isMin = mode === 'min' || mode === 'recovery';
+            const isWeekend = mode === 'saturday' || mode === 'sunday';
+            const timeSettings = MODES[mode] || MODES.NORM;
+            const hasCriticalMiss = state.missedYesterday.pm || state.missedYesterday.body;
 
-            const scheduleHtml = schedule.map((item) => `
-                <div class="relative pl-8 md:pl-14 group cursor-default">
-                    <div class="absolute -left-[18px] md:-left-[19.5px] top-1 w-8 h-8 md:w-9 md:h-9 rounded-full border-[3px] flex items-center justify-center transition-colors duration-500 shadow-[0_0_10px_rgba(0,0,0,0.5)] ${item.special ? 'bg-amber-500/20 border-amber-500' : 'bg-[#0a0a0a] border-[#262626] group-hover:border-amber-400'}">
-                        <i data-lucide="${item.icon}" class="w-3.5 h-3.5 transition-colors duration-500 ${item.special ? 'text-amber-400' : 'text-slate-500 group-hover:text-amber-400'}"></i>
+            const getDynamicTasks = () => {
+                if (mode === 'saturday') return (
+                    <div className="p-6 md:p-10 bg-gradient-to-b from-[#121212] to-[#0f0f0f] rounded-2xl md:rounded-3xl border border-[#262626] text-center shadow-inner relative overflow-hidden">
+                        <div className="flex justify-center mb-4 md:mb-6"><Moon className="text-slate-500" size={48} /></div>
+                        <h3 className="text-2xl md:text-3xl font-black text-white mb-3 md:mb-4 tracking-tight">Я — СОЗДАТЕЛЬ. Суббота.</h3>
+                        <p className="text-slate-400 font-medium leading-relaxed max-w-md mx-auto text-sm md:text-lg mb-6 break-words">Карьера и тяжелые тренировки отключены. Творчество (Suno), отдых и разгрузка. Лимит 4500 ккал.</p>
+                        <Button onClick={() => update('currentTab', 'schedule')} variant="secondary" className="mx-auto">Смотреть план</Button>
                     </div>
-                    <div class="p-4 md:p-5 rounded-2xl transition-colors ${item.special ? 'bg-amber-500/5 border border-amber-500/20' : item.highlight ? 'bg-[#1a1a1a]/40 border border-[#262626]' : ''}">
-                        <span class="font-mono font-bold text-xs md:text-sm tracking-widest drop-shadow-sm px-2 py-1 rounded-md ${item.special ? 'text-[#0a0a0a] bg-amber-500' : 'text-amber-400 bg-amber-500/10'}">${item.time}</span>
-                        <h3 class="text-lg sm:text-xl md:text-2xl font-black mt-3 uppercase tracking-tight break-words ${item.special ? 'text-amber-400' : 'text-white'}">${item.title}</h3>
-                        <p class="text-sm md:text-base text-slate-400 font-medium mt-2 leading-relaxed break-words">${item.desc}</p>
+                );
+                if (mode === 'sunday') return (
+                    <div className="space-y-4">
+                        <TipCard text="Воскресенье — день планирования. Сними напряжение и разгрузи голову на неделю вперед. Лимит 4500 ккал." icon={Calendar}/>
+                        <CheckItem anchor="Пробуждение" checked={state.dailyTasks.pm} onChange={() => toggleTask('pm', 'pm', 10)} label="План Недели (Магнитная доска)" subLabel="Обновить задачи и фокус." xpBadge="10" />
+                        <CheckItem anchor="Обед" checked={state.dailyTasks.content} onChange={() => toggleTask('content', 'content', 10)} label="Контент план" subLabel="Обдумать идеи на ПН-ПТ." xpBadge="10" />
                     </div>
-                </div>
-            `).join('');
-
-            return `
-            <div class="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
-                <h1 class="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Распорядок</h1>
-                <div class="glass-panel max-w-4xl mx-auto rounded-[2rem] p-6 md:p-12">
-                    <div class="relative border-l-[3px] border-[#262626] ml-2 md:ml-8 space-y-10 md:space-y-12 py-6 md:py-8">
-                        ${scheduleHtml}
-                    </div>
-                </div>
-            </div>`;
-        }
-
-        let breathInterval = null;
-        function openBreathing(type) {
-            updateState({ breathTypeOpen: type, breathActive: false, breathTimeLeft: 180 });
-        }
-        function toggleBreathing() {
-            if(state.breathActive) {
-                updateState({ breathActive: false });
-                clearInterval(breathInterval);
-            } else {
-                updateState({ breathActive: true });
-                const endTime = Date.now() + (state.breathTimeLeft * 1000);
-                breathInterval = setInterval(() => {
-                    const now = Date.now();
-                    const left = Math.max(0, Math.ceil((endTime - now) / 1000));
-                    
-                    // Direct DOM update for performance
-                    const m = Math.floor(left / 60);
-                    const s = (left % 60).toString().padStart(2, '0');
-                    const disp = document.getElementById('breath-display');
-                    if(disp) disp.innerText = `${m}:${s}`;
-                    
-                    const timeElapsed = 180 - left;
-                    const isMorning = state.breathTypeOpen === 'morning';
-                    const currentCycleSec = timeElapsed % (isMorning ? 16 : 10);
-                    
-                    let phase = '', scale = 1, phaseLeft = 0;
-                    if(isMorning) {
-                        if (currentCycleSec < 4) { phase = 'Вдох'; phaseLeft = 4 - currentCycleSec; scale = 1.6; }
-                        else if (currentCycleSec < 8) { phase = 'Задержка'; phaseLeft = 8 - currentCycleSec; scale = 1.6; }
-                        else if (currentCycleSec < 12) { phase = 'Выдох'; phaseLeft = 12 - currentCycleSec; scale = 1; }
-                        else { phase = 'Задержка'; phaseLeft = 16 - currentCycleSec; scale = 1; }
-                    } else {
-                        if (currentCycleSec < 4) { phase = 'Вдох'; phaseLeft = 4 - currentCycleSec; scale = 1.5; }
-                        else { phase = 'Выдох'; phaseLeft = 10 - currentCycleSec; scale = 1; }
-                    }
-
-                    const phaseDisp = document.getElementById('breath-phase');
-                    const circleOuter = document.getElementById('breath-circle-outer');
-                    const circleInner = document.getElementById('breath-circle-inner');
-                    const numDisp = document.getElementById('breath-num');
-
-                    if(phaseDisp) phaseDisp.innerText = phase;
-                    if(circleOuter) circleOuter.style.transform = `scale(${scale})`;
-                    if(circleInner) circleInner.style.transform = `scale(${scale})`;
-                    if(numDisp) numDisp.innerText = phaseLeft;
-
-                    if(left <= 0) {
-                        clearInterval(breathInterval);
-                        updateState({ breathActive: false, breathTimeLeft: 0 });
-                        showToast("Практика завершена. XP начислено.", false);
-                        if(isMorning && !state.dailyTasks.breathAm) toggleTask('breathAm', 'spirit', 15);
-                        if(!isMorning && !state.dailyTasks.breathPm) toggleTask('breathPm', 'spirit', 15);
-                    } else {
-                        // Store silently to keep state in sync if navigating away
-                        state.breathTimeLeft = left; 
-                    }
-                }, 1000);
-            }
-        }
-
-        function ViewRituals() {
-            const isDomination = state.manifestState === 'domination';
-            
-            const manifestToggleHtml = `
-                <div class="flex bg-[#0f0f0f] p-1.5 rounded-xl border border-[#262626] mb-4 w-max">
-                    <button onclick="updateState({manifestState: 'domination'})" class="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${isDomination ? 'bg-amber-500/20 text-amber-400' : 'text-slate-500 hover:text-slate-300'}">Доминация</button>
-                    <button onclick="updateState({manifestState: 'stoic'})" class="px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${!isDomination ? 'bg-indigo-500/20 text-indigo-400' : 'text-slate-500 hover:text-slate-300'}">Защита (Стоик)</button>
-                </div>
-            `;
-
-            const mAm = MANIFESTS.AM[state.manifestState];
-            const mPm = MANIFESTS.PM[state.manifestState];
-
-            if(state.breathTypeOpen) {
-                const isAm = state.breathTypeOpen === 'morning';
-                const exp = isAm ? "Box Breathing (4-4-4-4). Баланс симпатической и парасимпатической системы. Ясность и фокус." : "Стимуляция блуждающего нерва (Вдох 4с / Выдох 6с). Снижение пульса и кортизола перед сном.";
-                return `
-                <div class="space-y-8 animate-in fade-in">
-                    <button onclick="clearInterval(breathInterval); updateState({breathTypeOpen: null});" class="text-slate-400 hover:text-white flex items-center gap-2 mb-4"><i data-lucide="chevron-left" class="w-5 h-5"></i> Назад к ритуалам</button>
-                    <div class="bg-[#0f0f0f] border border-[#262626] p-5 md:p-10 rounded-2xl md:rounded-3xl flex flex-col items-center justify-center relative overflow-hidden min-h-[400px] w-full max-w-2xl mx-auto shadow-2xl">
-                        <div class="absolute top-4 md:top-5 left-4 md:left-5 text-[10px] md:text-xs font-black text-slate-400 uppercase tracking-widest bg-[#1a1a1a] px-3 py-1.5 rounded-lg border border-[#333333]">
-                            ${isAm ? 'Box Breathing' : 'Relax Breathing'}
+                );
+                return (
+                    <div className="space-y-6 md:space-y-8">
+                        <div>
+                            <h3 className="text-xs md:text-sm font-black text-amber-500 uppercase tracking-widest mb-3 md:mb-4 flex items-center gap-2 truncate"><Layers size={16}/> Я — Структура</h3>
+                            <div className="space-y-3 md:space-y-4">
+                                <div className="bg-[#0f0f0f] border border-[#262626] rounded-2xl md:rounded-3xl p-2 md:p-3 pb-4 md:pb-5 shadow-sm">
+                                    <CheckItem anchor="Конец Английского" checked={state.dailyTasks.pm} onChange={() => toggleTask('pm', 'pm', isMin?10:15)} label="Project Management" subLabel={`Главный приоритет: ${timeSettings.pmTime} мин.`} xpBadge={isMin?"10":"15"} />
+                                    {!state.dailyTasks.pm && <div className="px-3 md:px-5"><FocusTimer defaultMinutes={timeSettings.pmTime} taskName="PM Deep Work" taskId="pm" category="pm" xpReward={isMin?10:15} onCompleteTask={toggleTask} /></div>}
+                                </div>
+                                
+                                <div className="bg-[#0f0f0f] border border-[#262626] rounded-2xl md:rounded-3xl p-2 md:p-3 pb-4 md:pb-5 shadow-sm">
+                                    <CheckItem anchor="Завтрак" checked={state.dailyTasks.english} onChange={() => toggleTask('english', 'english', 10)} label="English Speaking" subLabel={`Практика: ${timeSettings.engTime} мин.`} xpBadge="10" />
+                                    {!state.dailyTasks.english && <div className="px-3 md:px-5"><FocusTimer defaultMinutes={timeSettings.engTime} taskName="English Practice" taskId="english" category="english" xpReward={10} onCompleteTask={toggleTask} /></div>}
+                                </div>
+                            </div>
                         </div>
-                        <div id="breath-display" class="absolute top-4 md:top-5 right-4 md:right-5 text-sm font-mono font-black text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/30">
-                            ${Math.floor(state.breathTimeLeft/60)}:${(state.breathTimeLeft%60).toString().padStart(2,'0')}
+
+                        <div>
+                            <h3 className="text-xs md:text-sm font-black text-amber-500 uppercase tracking-widest mb-3 md:mb-4 flex items-center gap-2 truncate"><Dumbbell size={16}/> Я — Атлет</h3>
+                            <CheckItem anchor="Окна между клиентами" checked={state.dailyTasks.body} onChange={() => toggleTask('body', 'body', 20)} label={isMin ? "Легкая растяжка (10 мин)" : "Личная Тренировка + Аудиокнига"} subLabel={isMin ? "Снять напряжение. Микро-старт." : "Фундамент энергии (16:00 - 22:30)."} xpBadge="20" />
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
+                    <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-5 md:gap-6">
+                        <div className="w-full xl:w-auto">
+                            <h1 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Сегодня</h1>
+                            <p className={`${THEME.accent} font-mono mt-2 md:mt-3 capitalize text-sm sm:text-lg md:text-xl tracking-widest font-bold flex items-center gap-2 md:gap-3 drop-shadow-sm truncate`}><Calendar size={18} className="md:w-5 md:h-5"/> {todayDate}</p>
                         </div>
                         
-                        <div class="relative w-48 h-48 md:w-64 md:h-64 flex items-center justify-center mb-8 mt-6">
-                            <div id="breath-circle-outer" class="absolute rounded-full bg-amber-500/10 blur-3xl transition-all duration-1000 ease-in-out w-full h-full"></div>
-                            <div id="breath-circle-inner" class="relative z-10 rounded-full border-[3px] border-amber-500/40 bg-gradient-to-br from-[#121212] to-[#050505] flex flex-col items-center justify-center transition-all duration-1000 ease-in-out shadow-[0_0_30px_rgba(251,191,36,0.1)] w-[120px] h-[120px]">
-                                ${state.breathActive ? `<div id="breath-num" class="text-5xl font-black font-mono text-amber-400">0</div>` : `<i data-lucide="wind" class="text-slate-600 w-10 h-10"></i>`}
+                        <div className="flex bg-[#0f0f0f] p-2 md:p-2.5 rounded-2xl border border-[#262626] overflow-x-auto w-full xl:w-auto hide-scrollbar shadow-inner gap-1.5 md:gap-2">
+                            {Object.values(MODES).map(m => (
+                                <button 
+                                    key={m.id} onClick={() => { triggerHaptic(15); update('currentMode', m.id); showToast(`Режим системы: ${m.label}`); }}
+                                    className={`px-3 md:px-5 py-2.5 md:py-3.5 rounded-xl text-xs sm:text-sm md:text-base font-black whitespace-nowrap transition-all duration-300 touch-manipulation flex-shrink-0 uppercase tracking-wider ${state.currentMode === m.id ? 'bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0a0a0a] shadow-[0_0_20px_rgba(251,191,36,0.3)]' : 'text-slate-500 hover:text-slate-200 hover:bg-[#1a1a1a]'}`}
+                                >
+                                    {m.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <MotivationCard title="Статистическая неизбежность (Топ 1%)" text="Пока 99% людей живут в реактивном хаосе и просыпают свою жизнь, ты выполняешь алгоритм. Твой успех — это не удача, это сухая математика. Каждый час фокуса сегодня — это статус, капитал и свобода завтра." />
+
+                    {hasCriticalMiss && (
+                        <div className="bg-rose-950/40 border border-rose-900/50 rounded-2xl p-4 md:p-6 flex flex-col sm:flex-row items-start gap-4 md:gap-5 animate-pulse shadow-[0_0_30px_rgba(251,113,133,0.1)]">
+                            <ShieldAlert size={28} className="text-rose-500 flex-shrink-0 sm:mt-1" />
+                            <div className="min-w-0">
+                                <h3 className="text-rose-400 font-black uppercase tracking-widest text-sm md:text-lg mb-1.5 md:mb-2 truncate">Закон двух дней (Never Miss Twice)</h3>
+                                <p className="text-xs md:text-sm text-slate-300 font-medium leading-relaxed break-words">Один пропуск — случайность. Два пропуска подряд стирают синаптическую связь на 70%. <b>Сделай микро-старт (2 мин) прямо сейчас.</b></p>
                             </div>
                         </div>
+                    )}
 
-                        <div id="breath-phase" class="text-3xl font-black mb-5 h-10 flex items-center tracking-tight ${state.breathActive ? 'text-white' : 'text-slate-500'}">
-                            ${state.breathActive ? 'Вдох' : 'Готов?'}
+                    <TipCard title="Identity Onboarding" text="Действуй не из позиции «надо», а из позиции «я такой человек». Ты — Суверен, структурирующий хаос." icon={Crown}/>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                        <div className="space-y-6 md:space-y-8 flex flex-col">
+                            <Card interactive className="border-[#262626] bg-gradient-to-b from-[#121212] to-[#0a0a0a] flex-1">
+                                <div className="flex items-center justify-between mb-6 md:mb-8">
+                                    <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white flex items-center gap-2 md:gap-3 tracking-tight uppercase truncate">
+                                        <Activity className={isMin ? "text-rose-400 flex-shrink-0" : "text-amber-400 flex-shrink-0"} size={24}/> 
+                                        <span className="truncate">{isMin ? "Минимум Выживания" : isWeekend ? "Фокус Выходного" : "Главные Идентичности"}</span>
+                                    </h2>
+                                </div>
+                                {getDynamicTasks()}
+                            </Card>
                         </div>
-                        <p class="text-xs md:text-sm text-slate-400 text-center max-w-sm mb-8 font-medium bg-[#1a1a1a]/50 p-4 rounded-xl border border-[#262626]">${exp}</p>
 
-                        ${ButtonHTML(state.breathActive ? 'Пауза' : (state.breathTimeLeft < 180 ? 'Продолжить' : 'Начать 3 минуты'), state.breathActive ? 'secondary' : 'primary', state.breathActive ? 'pause' : 'play', 'toggleBreathing()')}
+                        <div className="space-y-6 md:space-y-8 flex flex-col">
+                            <Card interactive className="flex-1">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 md:mb-8 gap-4 border-b border-[#262626] pb-5 md:pb-6">
+                                    <h2 className="text-lg sm:text-xl md:text-2xl font-black text-white flex items-center gap-2 md:gap-3 tracking-tight uppercase truncate"><Shield className="text-slate-400 flex-shrink-0" size={20}/> <span className="truncate">Обязательная База</span></h2>
+                                    {state.currentMode !== 'min' && (
+                                        <Button variant="danger" className="py-2.5 px-4 text-[10px] md:text-xs uppercase tracking-widest font-black w-full sm:w-auto flex-shrink-0" onClick={() => { update('currentMode', 'min'); showToast('Активирован протокол выживания. Лишнее отключено.', true); }}>
+                                            Срезать до минимума
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="grid grid-cols-1 gap-5 md:gap-6">
+                                    <div className="space-y-2.5 md:space-y-3 bg-[#0f0f0f] p-4 md:p-6 rounded-2xl md:rounded-3xl border border-[#262626] shadow-inner">
+                                        <div className="flex items-center gap-3 mb-4 md:mb-6 pb-3 md:pb-4 border-b border-[#262626]">
+                                            <div className="p-2 md:p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20"><Compass className="text-emerald-400" size={18}/></div>
+                                            <span className="text-xs md:text-sm text-slate-300 font-black uppercase tracking-widest">Утро</span>
+                                        </div>
+                                        <CheckItem anchor="Пробуждение" checked={state.dailyTasks.waterAm} onChange={() => toggleTask('waterAm', 'spirit', 5)} label="Вода, свет, проветривание" xpBadge="5"/>
+                                        <CheckItem anchor="Вода" checked={state.dailyTasks.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Микро-зарядка (2 мин)" subLabel="Разгон крови." xpBadge="5"/>
+                                        <CheckItem anchor="Зарядка" checked={state.dailyTasks.breathAm} onChange={() => toggleTask('breathAm', 'spirit', 10)} label="Дыхание (3 мин)" subLabel="Box Breathing" xpBadge="10"/>
+                                        <CheckItem anchor="Дыхание" checked={state.dailyTasks.prayerAm} onChange={() => toggleTask('prayerAm', 'spirit', 10)} label="Утренний Манифест" xpBadge="10"/>
+                                    </div>
+                                    <div className="space-y-2.5 md:space-y-3 bg-[#0f0f0f] p-4 md:p-6 rounded-2xl md:rounded-3xl border border-[#262626] shadow-inner">
+                                        <div className="flex items-center gap-3 mb-4 md:mb-6 pb-3 md:pb-4 border-b border-[#262626]">
+                                            <div className="p-2 md:p-2.5 bg-indigo-500/10 rounded-xl border border-indigo-500/20"><Moon className="text-indigo-400" size={18}/></div>
+                                            <span className="text-xs md:text-sm text-slate-300 font-black uppercase tracking-widest">Вечер</span>
+                                        </div>
+                                        {(!isMin && !isWeekend) && <CheckItem anchor="Идея" checked={state.dailyTasks.content} onChange={() => toggleTask('content', 'content', 5)} label="Контент" subLabel="Хотя бы 1 мысль" xpBadge="5"/>}
+                                        {(!isMin && !isWeekend) && <CheckItem anchor="Конец работы" checked={state.dailyTasks.cardio} onChange={() => toggleTask('cardio', 'body', 10)} label="Кардио (20-25 мин)" subLabel="Дома, перед едой." xpBadge="10"/>}
+                                        <CheckItem anchor="Постель" checked={state.dailyTasks.breathPm} onChange={() => toggleTask('breathPm', 'spirit', 10)} label="Дыхание (3 мин)" subLabel="Сброс кортизола" xpBadge="10"/>
+                                        <CheckItem anchor="Дыхание" checked={state.dailyTasks.prayerPm} onChange={() => toggleTask('prayerPm', 'spirit', 10)} label="Вечерний Манифест" xpBadge="10"/>
+                                    </div>
+                                </div>
+                            </Card>
+                        </div>
                     </div>
-                </div>`;
+                </div>
+            );
+        };
+
+        const ScheduleView = ({ state }) => {
+            const mode = state.currentMode;
+            
+            const getTimeline = () => {
+                if (mode === 'saturday') return [
+                    { time: '11:00', title: 'Мягкий подъём', desc: 'Вода, свет, дыхание. Без спешки.', icon: Compass },
+                    { time: '12:00', title: 'Разгрузка / Прогулка', desc: 'Хобби, прогулка. Отдых мозга.', icon: Wind },
+                    { time: '14:00', title: 'Творчество (Vibe Coding)', desc: 'Suno, идеи, легкий кодинг в кайф.', icon: Music },
+                    { time: '18:00', title: 'Контроль Рефида', desc: 'Лимит 4500 ккал. Отдых и еда.', icon: Coffee },
+                    { time: '20:00', title: 'Восстановление', desc: 'Баня, массаж или аудиокнига.', icon: Battery },
+                    { time: '23:30', title: 'Мягкий вечер', desc: 'Уход, Вечерний Манифест. Сон.', icon: Moon }
+                ];
+                
+                if (mode === 'sunday') return [
+                    { time: '11:00', title: 'Подъем', desc: 'Мягкий вход в режим.', icon: Compass },
+                    { time: '12:00', title: 'Лёгкий разбор', desc: 'Что получилось на неделе, что слил.', icon: Target },
+                    { time: '13:00', title: 'План Недели', desc: 'Обновить магнитную доску.', icon: Layout },
+                    { time: '15:00', title: 'Контроль Рефида', desc: 'Лимит 4500 ккал.', icon: Coffee },
+                    { time: '19:00', title: 'Контент-план', desc: 'Наброски на ПН-ПТ.', icon: PenTool },
+                    { time: '22:00', title: 'Мягкий вечер', desc: 'Ритуалы, аудиокнига, сонный режим.', icon: Moon }
+                ];
+
+                return [
+                    { time: '10:30', title: 'Подъём', desc: 'Стабилизация режима. Вода, свет, проветривание.', icon: Compass },
+                    { time: '10:45', title: 'Дыхание (3 мин)', desc: 'Box Breathing. Снизить хаос, включить контроль.', icon: Wind },
+                    { time: '10:48', title: 'Сверх-Манифест', desc: 'Внутренний фокус. Заявление прав на реальность.', icon: Flame },
+                    { time: '10:50', title: 'Микро-зарядка', desc: 'Разгон крови (10 минут растяжки или 2 мин активности).', icon: Zap },
+                    { time: '11:00', title: 'Уход', desc: 'Внешний вид — часть личного бренда.', icon: Sparkles },
+                    { time: '11:10', title: 'Завтрак + Языковой Спринт', desc: '[Якорь: Еда]. Замена пустого YouTube на инвестицию в статус полиглота. Один день — один язык. Быстро, вкусно, полезно.', icon: Utensils, highlight: true },
+                    { time: '11:35', title: 'Daily English Speaking', desc: 'Инструмент для глобального ИТ. Мозг разогрет, английский залетает на автомате.', icon: Globe, highlight: true },
+                    { time: '12:05', title: 'Project Management [Фокус]', desc: '[Якорь: Конец English]. Час построения твоих будущих бизнес-систем. Мозг не боится — ровно через 60 минут мучения закончатся.', icon: BrainCircuit, highlight: true },
+                    { time: '13:05', title: 'ЛЕГАЛЬНЫЙ БЛОК: Перезагрузка', desc: '[Якорь: Окончание PM]. Делай всё, что хочешь. YouTube, соцсети. Полное отсутствие чувства вины. Префронтальная кора остывает.', icon: Coffee, special: true },
+                    { time: '13:45', title: 'Контент / Бренд + Obsidian', desc: 'Легкий, созидательный час. Мозг отдохнул, творчество пойдет мощным потоком.', icon: Edit3, highlight: true },
+                    { time: '14:45', title: 'Буфер / Свободный слот', desc: 'Спокойно доделать то, что не успел. Проверить мессенджеры. Никакой спешки.', icon: ShieldCheck },
+                    { time: '15:15', title: 'Финальный аккорд', desc: 'Взял сумку. В 15:20 выезд. В голове абсолютный порядок и гордость за сработавшую систему.', icon: Briefcase },
+                    { time: '16:00', title: 'Работа с клиентами + Тренировка', desc: 'Основная занятость. Личная тренировка (с аудиокнигой) встраивается в окна.', icon: Dumbbell },
+                    { time: '22:30', title: 'Переход домой', desc: 'Отдых от клиентов. Без глубоких погружений.', icon: Home },
+                    { time: '23:00', title: 'Кардио дома', desc: '[Якорь: Конец работы] 20-25 минут перед едой. Сброс кортизола.', icon: HeartPulse },
+                    { time: '23:25', title: 'Душ / Восстановление', desc: 'Переключение в вечерний режим.', icon: Battery },
+                    { time: '23:45', title: 'Еда', desc: 'Восстановление после дня и кардио.', icon: CheckCircle2 },
+                    { time: '00:10', title: 'Уход', desc: 'Внешний вид, гигиена.', icon: Sparkles },
+                    { time: '00:25', title: 'Магний + 5-HTP', desc: 'Фиксация ночного режима.', icon: Shield },
+                    { time: '00:35', title: 'План на завтра', desc: 'Разгрузить голову перед сном.', icon: GitCommit },
+                    { time: '00:45', title: 'Вечерний Манифест', desc: 'Закрыть день и убрать внутренний шум.', icon: Flame },
+                    { time: '00:50', title: 'Дыхание на ночь', desc: 'Стимуляция блуждающего нерва (3 мин).', icon: Wind },
+                    { time: '00:55', title: 'Аудиокнига', desc: 'Спокойный контент. Мягкий вход в сон.', icon: BookMarked },
+                    { time: '01:00', title: 'Сон', desc: 'Стабилизация. Восстановление системы.', icon: Moon },
+                ];
+            };
+
+            const schedule = getTimeline();
+
+            return (
+                <div className="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
+                    <h1 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Распорядок</h1>
+                    <TipCard text="Распорядок — это не тюрьма, это рельсы. Если сошел с них, просто посмотри на часы и начни выполнять текущий блок, проигнорировав пропущенное. Вернись в систему." icon={List} />
+
+                    <Card className="max-w-4xl mx-auto bg-gradient-to-b from-[#121212] to-[#0a0a0a] p-6 md:p-12">
+                        <div className="relative border-l-[3px] border-[#262626] ml-2 md:ml-8 space-y-10 md:space-y-12 py-6 md:py-8">
+                            {schedule.map((item, i) => (
+                                <div key={i} className="relative pl-8 md:pl-14 group cursor-default">
+                                    <div className={`absolute -left-[18px] md:-left-[19.5px] top-1 w-8 h-8 md:w-9 md:h-9 rounded-full border-[3px] flex items-center justify-center transition-colors duration-500 shadow-[0_0_10px_rgba(0,0,0,0.5)] ${item.special ? 'bg-amber-500/20 border-amber-500' : 'bg-[#0a0a0a] border-[#262626] group-hover:border-amber-400'}`}>
+                                        <item.icon size={14} className={`transition-colors duration-500 ${item.special ? 'text-amber-400' : 'text-slate-500 group-hover:text-amber-400'}`} />
+                                    </div>
+                                    <div className={`p-4 md:p-5 rounded-2xl transition-colors ${item.special ? 'bg-amber-500/5 border border-amber-500/20' : item.highlight ? 'bg-[#1a1a1a]/40 border border-[#262626]' : ''}`}>
+                                        <span className={`font-mono font-bold text-xs md:text-sm tracking-widest drop-shadow-sm px-2 py-1 rounded-md ${item.special ? 'text-[#0a0a0a] bg-amber-500' : 'text-amber-400 bg-amber-500/10'}`}>{item.time}</span>
+                                        <h3 className={`text-lg sm:text-xl md:text-2xl font-black mt-3 uppercase tracking-tight break-words ${item.special ? 'text-amber-400' : 'text-white'}`}>{item.title}</h3>
+                                        <p className="text-sm md:text-base text-slate-400 font-medium mt-2 leading-relaxed break-words">{item.desc}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
+
+                    <MotivationCard title="Дисциплина = Свобода" text="Этот график — не ограничение, а инструмент для создания богатства и статуса. Придерживаясь его, ты гарантированно обходишь тех, кто полагается на 'мотивацию' и настроение." />
+                </div>
+            );
+        };
+
+        const LearningView = ({ state, saveDailyNote, addLanguagePhrase }) => {
+            const [localNote, setLocalNote] = useState({ pm: '', eng: '', lang: '' });
+            const isMin = state.currentMode === 'min' || state.currentMode === 'recovery';
+
+            if (state.currentMode === 'saturday') {
+                return (
+                    <div className="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700 text-center pt-20 md:pt-32">
+                        <div className="flex justify-center mb-6 md:mb-8"><Music className="text-amber-500 drop-shadow-[0_0_20px_rgba(251,191,36,0.3)]" size={64} /></div>
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white uppercase tracking-widest break-words">Суббота. Творчество.</h1>
+                        <p className="text-slate-400 text-sm md:text-xl mt-4 max-w-lg mx-auto break-words px-4">Обучение заблокировано. Сегодня день Vibe Coding и SUNO. Создавай без давления.</p>
+                    </div>
+                );
             }
 
-            return `
-            <div class="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
-                <h1 class="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Ритуалы</h1>
-                ${manifestToggleHtml}
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-                    <div class="glass-panel rounded-[2rem] p-5 md:p-8 border-t-4 border-t-amber-400 flex flex-col h-full bg-gradient-to-b from-[#121212] to-[#0a0a0a]">
-                        <h2 class="text-2xl md:text-4xl font-black text-white flex items-center gap-3 md:gap-4 mb-4 md:mb-6 uppercase tracking-tight truncate"><i data-lucide="compass" class="w-8 h-8 text-amber-400 flex-shrink-0"></i> Утро</h2>
-                        <div class="space-y-3 md:space-y-4 mb-8 flex-1">
-                            ${CheckItemHTML('waterAm', 'spirit', 5, 'Вода, свет, проветривание', 'Мягкий запуск.', 'Пробуждение')}
-                            ${CheckItemHTML('morningCharge', 'body', 5, 'Микро-зарядка (2 мин)', 'Разгон крови.', 'Вода')}
-                        </div>
-                        <div class="pt-6 border-t border-[#262626] space-y-4">
-                            <button onclick="openBreathing('morning')" class="w-full bg-[#1a1a1a] hover:bg-[#222222] border border-[#333333] p-4 rounded-xl flex items-center justify-between text-slate-200 transition-all font-bold">
-                                <span class="flex items-center gap-3"><i data-lucide="wind" class="text-amber-400 w-5 h-5"></i> Практика Дыхания (3 мин)</span>
-                                <i data-lucide="chevron-right" class="w-5 h-5 text-slate-500"></i>
-                            </button>
-                            <div class="bg-[#0f0f0f] border border-[#262626] rounded-xl p-4">
-                                <h4 class="font-black text-amber-400 text-xs uppercase tracking-widest mb-2">${mAm.title}</h4>
-                                <p class="text-[10px] text-slate-500 mb-3">${mAm.instruction}</p>
-                                <p class="text-sm text-slate-300 whitespace-pre-wrap font-medium">${mAm.text}</p>
-                            </div>
-                        </div>
-                    </div>
+            return (
+                <div className="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
+                    <h1 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Обучение</h1>
+                    
+                    {isMin ? (
+                        <TipCard text="РЕЖИМ МИНИМУМ. Открывай Obsidian только для записи 1 мысли. Никакого тяжелого погружения. Микро-старт: 2 минуты." icon={ZapOff} />
+                    ) : (
+                        <TipCard text="Здесь мы фиксируем ГЛАВНЫЙ инсайт дня, чтобы перенести его в Obsidian (правило 2-х минут)." icon={Anchor}/>
+                    )}
 
-                    <div class="glass-panel rounded-[2rem] p-5 md:p-8 border-t-4 border-t-yellow-600 flex flex-col h-full bg-gradient-to-b from-[#121212] to-[#0a0a0a]">
-                        <h2 class="text-2xl md:text-4xl font-black text-white flex items-center gap-3 md:gap-4 mb-4 md:mb-6 uppercase tracking-tight truncate"><i data-lucide="moon" class="w-8 h-8 text-yellow-600 flex-shrink-0"></i> Вечер</h2>
-                        <div class="space-y-3 md:space-y-4 mb-8 flex-1">
-                            ${CheckItemHTML('hygienePm', 'spirit', 5, 'Душ и уход', 'Смыть день.', 'Кардио')}
-                            ${CheckItemHTML('supplements', 'spirit', 5, 'Магний + 5-HTP', 'Биохимия сна.', 'Душ')}
-                            ${CheckItemHTML('planTomorrow', 'pm', 10, 'План на завтра', 'Разгрузить голову.', 'Постель')}
-                        </div>
-                        <div class="pt-6 border-t border-[#262626] space-y-4">
-                            <button onclick="openBreathing('evening')" class="w-full bg-[#1a1a1a] hover:bg-[#222222] border border-[#333333] p-4 rounded-xl flex items-center justify-between text-slate-200 transition-all font-bold">
-                                <span class="flex items-center gap-3"><i data-lucide="wind" class="text-yellow-600 w-5 h-5"></i> Практика Дыхания (3 мин)</span>
-                                <i data-lucide="chevron-right" class="w-5 h-5 text-slate-500"></i>
-                            </button>
-                            <div class="bg-[#0f0f0f] border border-[#262626] rounded-xl p-4">
-                                <h4 class="font-black text-yellow-600 text-xs uppercase tracking-widest mb-2">${mPm.title}</h4>
-                                <p class="text-[10px] text-slate-500 mb-3">${mPm.instruction}</p>
-                                <p class="text-sm text-slate-300 whitespace-pre-wrap font-medium">${mPm.text}</p>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                        <Card interactive className="flex flex-col">
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 mb-6 md:mb-8 uppercase tracking-tight truncate"><BookOpen className="text-amber-500 flex-shrink-0" size={28}/> <span className="truncate">PM</span></h2>
+                            <div className="space-y-4 md:space-y-6 flex-1">
+                                {!isMin && <TextInput multiline placeholder="Главный инсайт, фреймворк или решение сегодня..." value={localNote.pm} onChange={(v) => setLocalNote(p => ({...p, pm: v}))} className="min-h-[100px] md:min-h-[120px]"/>}
+                                {isMin && <TextInput placeholder="1 короткий инсайт (микро-старт)" value={localNote.pm} onChange={(v) => setLocalNote(p => ({...p, pm: v}))} />}
+                                <Button variant="secondary" className="w-full text-sm md:text-lg" onClick={() => { saveDailyNote(localNote.pm, 'PM'); setLocalNote(p => ({...p, pm: ''})); }}>Зафиксировать инсайт</Button>
                             </div>
-                        </div>
+                        </Card>
+
+                        <Card interactive className="flex flex-col">
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 mb-6 md:mb-8 uppercase tracking-tight truncate"><Globe className="text-yellow-500 flex-shrink-0" size={28}/> <span className="truncate">English Speaking</span></h2>
+                            <div className="space-y-4 md:space-y-6 flex-1">
+                                {!isMin && <TextInput multiline placeholder="Новая фраза, идиома или разобранная ошибка..." value={localNote.eng} onChange={(v) => setLocalNote(p => ({...p, eng: v}))} className="min-h-[100px] md:min-h-[120px]" />}
+                                {isMin && <TextInput placeholder="Запиши 1 фразу (микро-старт)" value={localNote.eng} onChange={(v) => setLocalNote(p => ({...p, eng: v}))} />}
+                                <Button variant="secondary" className="w-full text-sm md:text-lg" onClick={() => { saveDailyNote(localNote.eng, 'ENG'); setLocalNote(p => ({...p, eng: ''})); }}>Зафиксировать язык</Button>
+                            </div>
+                        </Card>
+
+                        <Card className="lg:col-span-2 bg-gradient-to-br from-[#121212] to-[#0a0a0a]">
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 mb-5 md:mb-6 uppercase tracking-tight truncate"><Utensils className="text-amber-400 flex-shrink-0" size={28}/> <span className="truncate">Микро-языки</span></h2>
+                            <p className="text-sm md:text-base text-slate-400 mb-6 md:mb-8 font-medium bg-[#1a1a1a] p-4 md:p-5 rounded-2xl border border-[#262626] flex items-start gap-2 md:gap-3 break-words">
+                                <Anchor className="text-amber-500 mt-1 flex-shrink-0" size={18}/>
+                                <span>Якорь: <b>Завтрак</b>. Spanish / Mandarin (с транслитерацией). Строго во время еды. Привязка к физическому действию закрепляет нейропластичность.</span>
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-4 md:gap-5 mb-6 md:mb-8">
+                                <TextInput placeholder="Введи выученную фразу (напр. Hola, cómo estás / Nǐ hǎo)..." value={localNote.lang} onChange={(v) => setLocalNote(p => ({...p, lang: v}))} className="flex-1 text-base md:text-lg" />
+                                <Button variant="primary" className="sm:w-[200px] md:w-[250px] text-sm md:text-lg" onClick={() => { addLanguagePhrase(localNote.lang); setLocalNote(p => ({...p, lang: ''})); }}><Plus size={20} className="hidden sm:block"/> Запомнить</Button>
+                            </div>
+                            
+                            {state.languagePhrases.length > 0 && (
+                                <div className="p-5 md:p-8 bg-[#0a0a0a] rounded-2xl md:rounded-3xl border border-[#262626] space-y-4 md:space-y-5 shadow-inner">
+                                    <h3 className="text-xs md:text-sm font-black text-slate-500 uppercase tracking-widest mb-3 md:mb-4">Изучено сегодня:</h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+                                        {state.languagePhrases.map((phrase, i) => (
+                                            <div key={i} className="text-sm md:text-lg font-bold text-slate-200 flex items-start gap-3 bg-[#1a1a1a]/80 p-4 md:p-5 rounded-2xl border border-[#333333] shadow-sm break-words">
+                                                <Circle size={16} className="mt-1 text-amber-500 flex-shrink-0"/> {phrase}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </Card>
                     </div>
                 </div>
-            </div>`;
-        }
+            );
+        };
 
-        function setNumericVal(path, val, min, max) {
-            val = Math.max(min, Math.min(max, Number(val) || 0));
-            updateState(prev => {
-                const keys = path.split('.');
-                let current = prev;
-                for (let i = 0; i < keys.length - 1; i++) current = current[keys[i]];
-                current[keys[keys.length - 1]] = val;
-                return prev;
-            });
-        }
+        const BodyView = ({ state, update, toggleTask }) => {
+            const isMin = state.currentMode === 'min' || state.currentMode === 'recovery';
+            const isWeekend = state.currentMode === 'saturday' || state.currentMode === 'sunday';
 
-        function NumInputHTML(label, path, val, min, max, hint, color="amber") {
-            const cText = color === 'red' ? 'text-rose-400 drop-shadow-[0_0_8px_rgba(251,113,133,0.4)]' : 'text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.4)]';
-            return `
-            <div class="flex flex-col gap-2 w-full">
-                <div class="flex flex-wrap justify-between items-end text-sm mb-1 px-2">
-                    <span class="text-slate-400 font-bold tracking-wide">${label} <span class="text-xs opacity-50 ml-1 font-normal">(${hint})</span></span>
-                </div>
-                <div class="flex items-center gap-1 bg-[#0f0f0f] border border-[#262626] p-1.5 rounded-2xl w-full shadow-inner">
-                    <button onclick="setNumericVal('${path}', ${val-1}, ${min}, ${max})" class="p-3 rounded-xl bg-[#1a1a1a] text-slate-400 hover:text-amber-400 transition-all active:scale-95"><i data-lucide="minus" class="w-5 h-5"></i></button>
-                    <input type="number" value="${val}" onchange="setNumericVal('${path}', this.value, ${min}, ${max})" class="flex-1 bg-transparent text-center text-2xl md:text-3xl font-mono font-black focus:outline-none w-full min-w-0 ${cText}" />
-                    <button onclick="setNumericVal('${path}', ${val+1}, ${min}, ${max})" class="p-3 rounded-xl bg-[#1a1a1a] text-slate-400 hover:text-amber-400 transition-all active:scale-95"><i data-lucide="plus" class="w-5 h-5"></i></button>
-                </div>
-            </div>`;
-        }
+            return (
+                <div className="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
+                    <h1 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Тело</h1>
+                    <TipCard text="Тело — фундамент энергии, дисциплины и бренда. Тренировка идет на автомате. Мышцы работают, мозг свободен. Это идеальный рельс для аудиокниги. Качай тело и интеллект одновременно." icon={BookHeadphones} />
 
-        function ViewProgress() {
-            const s = state.stats;
-            const progressToNext = s.xp % 200;
-            const pct = (progressToNext / 200) * 100;
-
-            const bar = (label, val, colorClass) => `
-                <div class="w-full bg-[#0f0f0f] p-4 md:p-6 rounded-2xl border border-[#262626] shadow-inner">
-                    <div class="flex justify-between text-[10px] sm:text-xs mb-3 font-black uppercase tracking-widest gap-2">
-                        <span class="text-slate-400 truncate">${label}</span>
-                        <span class="text-slate-200 drop-shadow-sm flex-shrink-0">${Math.floor(val)}%</span>
-                    </div>
-                    <div class="h-3 w-full bg-[#050505] rounded-full overflow-hidden border border-[#262626]">
-                        <div class="h-full ${colorClass} transition-all duration-1000 ease-out shadow-[0_0_15px_currentColor] opacity-90" style="width: ${val}%"></div>
-                    </div>
-                </div>`;
-
-            return `
-            <div class="space-y-8 animate-in fade-in">
-                <h1 class="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg">Прогресс</h1>
-                
-                <div class="glass-panel rounded-[2rem] p-6 md:p-12 relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent opacity-70"></div>
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-                        <div class="flex items-center gap-4 md:gap-8">
-                            <div class="w-16 h-16 md:w-24 md:h-24 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-600 flex items-center justify-center shadow-[0_0_40px_rgba(251,191,36,0.3)] border-2 border-white/10">
-                                <i data-lucide="trophy" class="w-8 h-8 md:w-12 md:h-12 text-[#0a0a0a]"></i>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                        <Card>
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 mb-6 md:mb-8 uppercase tracking-tight truncate"><Dumbbell className="text-amber-500 flex-shrink-0" size={32}/> <span className="truncate">Физика</span></h2>
+                            <div className="space-y-4 md:space-y-5">
+                                {isWeekend ? (
+                                    <div className="space-y-3 md:space-y-4">
+                                        <p className="text-slate-400 font-medium bg-[#1a1a1a] p-4 md:p-6 rounded-2xl border border-[#262626] text-sm md:text-lg break-words">Выходной. Полное восстановление. По желанию: баня, массаж, прогулка.</p>
+                                        <div className="bg-amber-500/10 border border-amber-500/30 p-4 md:p-5 rounded-2xl flex items-center gap-3 md:gap-4">
+                                            <Coffee className="text-amber-400 flex-shrink-0" size={24}/>
+                                            <span className="text-amber-400 font-black text-sm md:text-lg break-words">Контроль рефида: Лимит 4500 ккал.</span>
+                                        </div>
+                                    </div>
+                                ) : isMin ? (
+                                    <CheckItem anchor="Чувство усталости" checked={state.dailyTasks.body} onChange={() => toggleTask('body', 'body', 20)} label="Легкая растяжка (10 мин)" subLabel="Сбросить напряжение. Микро-старт." xpBadge="20"/>
+                                ) : (
+                                    <CheckItem anchor="Окно в работе" checked={state.dailyTasks.body} onChange={() => toggleTask('body', 'body', 20)} label="Личная Тренировка + Аудиокнига" subLabel="Фундамент энергии (16:00 - 22:30)." xpBadge="20"/>
+                                )}
+                                {!isWeekend && <CheckItem anchor="Конец работы" checked={state.dailyTasks.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио дома (20-25 мин)" subLabel="Перед едой. Сброс кортизола." xpBadge="15"/>}
                             </div>
-                            <div>
-                                <h2 class="text-2xl sm:text-4xl md:text-6xl font-black text-white tracking-tight">Уровень ${s.level}</h2>
-                                <p class="text-amber-400 font-black mt-1 uppercase text-[10px] md:text-sm drop-shadow-md">Каста Суверенов</p>
+                        </Card>
+
+                        <Card>
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 mb-6 md:mb-8 uppercase tracking-tight truncate"><Battery className="text-yellow-600 flex-shrink-0" size={32}/> <span className="truncate">Восстановление</span></h2>
+                            <div className="space-y-8 md:space-y-10 flex-1">
+                                <NumericInput label="Длительность сна (цель 7.5ч)" min={0} max={16} step={0.5} value={state.energyMetrics.sleep} onChange={(v) => update('energyMetrics', {sleep: v})} />
+                                <NumericInput label="Желание тренироваться" hint="1-10" min={1} max={10} value={state.energyMetrics.readiness} onChange={(v) => update('energyMetrics', {readiness: v})} />
                             </div>
-                        </div>
-                        <div class="bg-[#050505] px-6 py-4 rounded-2xl border border-[#262626] shadow-inner">
-                            <span class="font-mono text-3xl sm:text-5xl md:text-6xl font-black text-white">${s.xp} <span class="text-lg text-amber-500/80">XP</span></span>
-                        </div>
+                        </Card>
                     </div>
                     
-                    <div class="space-y-4 mb-10">
-                        <div class="flex justify-between text-xs text-slate-400 font-black uppercase tracking-widest">
-                            <span>До Ур. ${s.level + 1}</span>
-                            <span class="text-amber-400 font-mono">${progressToNext} / 200</span>
-                        </div>
-                        <div class="h-6 md:h-8 w-full bg-[#050505] rounded-full border border-[#262626] p-1 relative overflow-hidden">
-                            <div class="h-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 rounded-full transition-all duration-1000 shadow-[0_0_30px_rgba(251,191,36,0.5)] relative overflow-hidden" style="width: ${pct}%">
-                                <div class="absolute inset-0 bg-white/20 skew-x-12 translate-x-full animate-shimmer"></div>
+                    <div className="mt-12 md:mt-16 mb-6 md:mb-8 text-center opacity-50 hover:opacity-100 transition-opacity duration-700 select-none px-4">
+                        <p className="text-base md:text-lg font-serif italic text-slate-300 mb-4 drop-shadow-md break-words">"Тело — это единственный дом, в котором тебе предстоит жить."</p>
+                    </div>
+                </div>
+            );
+        };
+
+        const ContentView = ({ state, update, saveDailyNote }) => {
+            const [idea, setIdea] = useState('');
+            const isMin = state.currentMode === 'min' || state.currentMode === 'recovery';
+
+            return (
+                <div className="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
+                    <h1 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Контент</h1>
+                    <Card glowing className="border-amber-500/40 bg-gradient-to-br from-[#121212] to-[#0a0a0a] p-6 md:p-12">
+                        <p className="text-xl sm:text-2xl md:text-4xl font-black text-white italic border-l-[4px] md:border-l-[6px] border-amber-500 pl-4 md:pl-8 py-3 md:py-4 leading-relaxed tracking-tight break-words">"Твоя задача — не снять шедевр.<br/><span className="text-amber-400">Твоя задача — не исчезнуть.</span>"</p>
+                    </Card>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                        <Card interactive>
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 mb-6 md:mb-8 uppercase tracking-tight truncate"><PenTool className="text-amber-500 flex-shrink-0" size={28}/> <span className="truncate">Мысль дня</span></h2>
+                            <p className="text-sm md:text-base text-slate-400 mb-6 md:mb-8 font-medium break-words">Я — Создатель. Запиши идею для поста, рилса или инсайт. Это пойдет в Obsidian.</p>
+                            <div className="space-y-4 md:space-y-6">
+                                <TextInput multiline placeholder={isMin ? "Микро-старт: 1 предложение..." : "Пиши как есть, без редактуры..."} value={idea} onChange={setIdea} className="min-h-[120px] md:min-h-[140px]" />
+                                <Button className="w-full text-sm md:text-lg" onClick={() => { saveDailyNote(idea, 'CONTENT'); setIdea(''); }}>Зафиксировать мысль</Button>
+                            </div>
+                        </Card>
+
+                        <Card interactive>
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 mb-6 md:mb-8 uppercase tracking-tight truncate"><TrendingUp className="text-yellow-500 flex-shrink-0" size={28}/> <span className="truncate">Контент-лестница</span></h2>
+                            <div className="space-y-3 md:space-y-4">
+                                {['Мысль записана', 'Идея оформлена', 'Черновик снят', 'Сторис выложена', 'Reels опубликован'].map((step, i) => (
+                                    <div key={i} className={`p-4 md:p-6 rounded-2xl border transition-all duration-300 cursor-pointer flex justify-between items-center touch-manipulation ${state.contentLadder >= i ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.15)]' : 'bg-[#0f0f0f] border-[#262626] text-slate-500 hover:border-[#3a3a3a] hover:bg-[#1a1a1a]'}`} onClick={() => update('contentLadder', state.contentLadder === i ? i - 1 : i)}>
+                                        <span className="font-bold text-sm md:text-lg truncate pr-3">{i+1}. {step}</span>
+                                        {state.contentLadder >= i && <CheckCircle2 size={20} className="flex-shrink-0" />}
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        };
+
+        const RitualsView = ({ state, toggleTask }) => {
+            return (
+                <div className="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
+                    <h1 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Ритуалы</h1>
+                    
+                    <TipCard text="Ритуалы — это твои психологические якоря. Если день развалился полностью, просто выполни утренний и вечерний ритуал. Это сохранит контроль и идентичность." icon={Anchor} />
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                        <Card className="border-t-4 border-t-amber-400 flex flex-col h-full bg-gradient-to-b from-[#121212] to-[#0a0a0a]">
+                            <h2 className="text-2xl md:text-4xl font-black text-white flex items-center gap-3 md:gap-4 mb-4 md:mb-6 uppercase tracking-tight truncate"><Compass className="text-amber-400 flex-shrink-0" size={32}/> <span className="truncate">Утро</span></h2>
+                            <p className="text-slate-400 text-sm md:text-base mb-6 md:mb-8 leading-relaxed font-medium bg-[#1a1a1a] p-4 md:p-5 rounded-2xl border border-[#262626] break-words">Запуск системы. Настройка физиологии на рабочий лад без резких скачков дофамина.</p>
+                            
+                            <div className="space-y-3 md:space-y-4 mb-8 md:mb-10 flex-1">
+                                <CheckItem anchor="Пробуждение" checked={state.dailyTasks.waterAm} onChange={() => toggleTask('waterAm', 'spirit', 5)} label="Вода, свет, проветривание" subLabel="Мягкий запуск." xpBadge="5" />
+                                <CheckItem anchor="Вода" checked={state.dailyTasks.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Микро-зарядка (2 мин)" subLabel="Разгон крови." xpBadge="5" />
+                                <CheckItem anchor="Умывание" checked={state.dailyTasks.hygieneAm} onChange={() => toggleTask('hygieneAm', 'spirit', 5)} label="Уход" subLabel="Внешний вид — часть бренда." xpBadge="5" />
+                                <CheckItem anchor="Еда" checked={state.dailyTasks.breakfast} onChange={() => toggleTask('breakfast', 'body', 5)} label="Завтрак + Микро-языки" subLabel="Habit Stacking." xpBadge="5" />
+                            </div>
+                            
+                            <div className="pt-6 md:pt-8 border-t border-[#262626] space-y-5 md:space-y-6">
+                                <h3 className="text-xl md:text-2xl font-black text-slate-200 flex items-center gap-2 md:gap-3 uppercase tracking-tight truncate"><Wind className="text-amber-400 flex-shrink-0" size={24}/> <span className="truncate">Утренняя Практика</span></h3>
+                                <BreathingTimer type="morning" onComplete={() => { if(!state.dailyTasks.breathAm) toggleTask('breathAm', 'spirit', 15, true); }} />
+                                <ManifestReader type="AM" />
+                                <CheckItem anchor="Дыхание" checked={state.dailyTasks.prayerAm} onChange={() => toggleTask('prayerAm', 'spirit', 10)} label="Подтвердить Манифест" xpBadge="10"/>
+                            </div>
+                        </Card>
+
+                        <Card className="border-t-4 border-t-yellow-600 flex flex-col h-full bg-gradient-to-b from-[#121212] to-[#0a0a0a]">
+                            <h2 className="text-2xl md:text-4xl font-black text-white flex items-center gap-3 md:gap-4 mb-4 md:mb-6 uppercase tracking-tight truncate"><Moon className="text-yellow-600 flex-shrink-0" size={32}/> <span className="truncate">Вечер</span></h2>
+                            <p className="text-slate-400 text-sm md:text-base mb-6 md:mb-8 leading-relaxed font-medium bg-[#1a1a1a] p-4 md:p-5 rounded-2xl border border-[#262626] break-words">Очистка оперативной памяти мозга. Закрытие гештальтов дня, чтобы тревога не ушла в сон.</p>
+
+                            <div className="space-y-3 md:space-y-4 mb-8 md:mb-10 flex-1">
+                                <CheckItem anchor="Кардио" checked={state.dailyTasks.hygienePm} onChange={() => toggleTask('hygienePm', 'spirit', 5)} label="Душ и уход" subLabel="Смыть день." xpBadge="5" />
+                                <CheckItem anchor="Душ" checked={state.dailyTasks.supplements} onChange={() => toggleTask('supplements', 'spirit', 5)} label="Магний + 5-HTP" subLabel="Биохимия сна." xpBadge="5" />
+                                <CheckItem anchor="Постель" checked={state.dailyTasks.planTomorrow} onChange={() => toggleTask('planTomorrow', 'pm', 10)} label="План на завтра" subLabel="Разгрузить голову." xpBadge="10" />
+                            </div>
+
+                            <div className="pt-6 md:pt-8 border-t border-[#262626] space-y-5 md:space-y-6">
+                                <h3 className="text-xl md:text-2xl font-black text-slate-200 flex items-center gap-2 md:gap-3 uppercase tracking-tight truncate"><Wind className="text-yellow-600 flex-shrink-0" size={24}/> <span className="truncate">Вечерняя Практика</span></h3>
+                                <BreathingTimer type="evening" onComplete={() => { if(!state.dailyTasks.breathPm) toggleTask('breathPm', 'spirit', 15, true); }} />
+                                <ManifestReader type="PM" />
+                                <CheckItem anchor="Дыхание" checked={state.dailyTasks.prayerPm} onChange={() => toggleTask('prayerPm', 'spirit', 10)} label="Подтвердить Манифест" xpBadge="10"/>
+                            </div>
+                        </Card>
+                    </div>
+                </div>
+            );
+        };
+
+        const ProgressView = ({ state, update }) => {
+            const { xp, level, categories, returnRate } = state.stats;
+            const progressToNext = xp % 200;
+            const progressPercent = (progressToNext / 200) * 100;
+            const isBurnoutRisk = state.energyMetrics.stress >= 7 || state.energyMetrics.sleep < 6 || state.energyMetrics.energy <= 4;
+
+            const ProgressBar = ({ label, progress, color }) => (
+                <div className="w-full bg-[#0f0f0f] p-4 md:p-6 rounded-2xl md:rounded-3xl border border-[#262626] shadow-inner">
+                    <div className="flex justify-between text-[10px] sm:text-xs md:text-sm mb-3 md:mb-5 font-black uppercase tracking-widest gap-2">
+                        <span className="text-slate-400 truncate">{label}</span>
+                        <span className="text-slate-200 drop-shadow-sm flex-shrink-0">{Math.floor(progress)}%</span>
+                    </div>
+                    <div className="h-3 md:h-4 w-full bg-[#050505] rounded-full overflow-hidden shadow-inner border border-[#262626]">
+                        <div className={`h-full ${color} transition-all duration-1000 ease-out shadow-[0_0_15px_currentColor] opacity-90`} style={{ width: `${progress}%` }}></div>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
+                    <h1 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Прогресс</h1>
+                    
+                    <MotivationCard title="Элита (Топ 1%)" text="Этот экран отличает тебя от остальных. Ты не просто 'стараешься', ты оцифровываешь свой успех. Каждое очко опыта здесь — это гвоздь в гроб твоих сомнений и лени." />
+
+                    {isBurnoutRisk && (
+                        <div className="bg-rose-950/30 border border-rose-900/50 p-5 md:p-8 rounded-2xl md:rounded-3xl flex flex-col sm:flex-row gap-4 md:gap-6 items-start animate-pulse shadow-[0_0_40px_rgba(251,113,133,0.1)] mb-6 md:mb-8">
+                            <div className="p-3 md:p-4 bg-rose-900/40 rounded-xl md:rounded-2xl flex-shrink-0 border border-rose-500/30"><ShieldAlert className="text-rose-400" size={28}/></div>
+                            <div className="min-w-0">
+                                <h3 className="text-rose-400 font-black text-lg md:text-2xl mb-2 md:mb-3 tracking-tight uppercase truncate">Burnout Shield Активен</h3>
+                                <p className="text-xs md:text-base text-rose-200/80 leading-relaxed font-medium break-words">Высокий стресс или недосып. Переключись в режим "Минимум". Наращивать темп можно только на восстановленной системе.</p>
                             </div>
                         </div>
-                    </div>
+                    )}
 
-                    <h3 class="text-lg font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2"><i data-lucide="activity" class="w-5 h-5 text-amber-400"></i> Идентичности</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        ${bar('Атлет (Тело)', s.categories.body, 'bg-amber-500')}
-                        ${bar('Структура (PM)', s.categories.pm, 'bg-yellow-500')}
-                        ${bar('Мир (English)', s.categories.english, 'bg-orange-400')}
-                        ${bar('Создатель (Контент)', s.categories.content, 'bg-amber-300')}
-                        ${bar('Return Rate', s.returnRate, 'bg-gradient-to-r from-amber-400 to-yellow-600')}
+                    <Card glowing className="bg-gradient-to-br from-[#121212] to-[#0a0a0a] border-amber-500/40 p-6 md:p-12">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-14 gap-6 md:gap-8">
+                            <div className="flex items-center gap-4 md:gap-8 min-w-0">
+                                <div className="w-16 h-16 md:w-24 md:h-24 rounded-2xl md:rounded-[2rem] bg-gradient-to-br from-yellow-400 to-amber-600 flex items-center justify-center shadow-[0_0_40px_rgba(251,191,36,0.3)] flex-shrink-0 border-2 border-white/10">
+                                    <Trophy className="text-[#0a0a0a]" size={32} />
+                                </div>
+                                <div className="min-w-0 pr-4">
+                                    <h2 className="text-2xl sm:text-4xl md:text-6xl font-black text-white tracking-tight truncate">Уровень {level}</h2>
+                                    <p className="text-amber-400 font-black mt-1 md:mt-3 tracking-widest uppercase text-[10px] md:text-sm drop-shadow-md truncate">Каста Суверенов</p>
+                                </div>
+                            </div>
+                            <div className="text-left md:text-right bg-[#050505] px-6 py-4 md:px-8 md:py-6 rounded-2xl md:rounded-3xl border border-[#262626] w-full md:w-auto shadow-inner">
+                                <span className="font-mono text-3xl sm:text-5xl md:text-6xl font-black text-white drop-shadow-lg truncate">{xp} <span className="text-lg md:text-2xl text-amber-500/80 ml-1">XP</span></span>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-4 md:space-y-5 mb-10 md:mb-16">
+                            <div className="flex justify-between text-[10px] md:text-sm text-slate-400 font-black uppercase tracking-widest gap-2">
+                                <span className="truncate">Прогресс до Ур. {level + 1}</span>
+                                <span className="text-amber-400 font-mono drop-shadow-sm flex-shrink-0">{progressToNext} / 200</span>
+                            </div>
+                            <div className="h-6 md:h-8 w-full bg-[#050505] rounded-full overflow-hidden border border-[#262626] relative shadow-inner p-1 md:p-1.5">
+                                <div className="h-full bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 rounded-full transition-all duration-1000 shadow-[0_0_30px_rgba(251,191,36,0.5)] relative overflow-hidden" style={{ width: `${progressPercent}%` }}>
+                                    <div className="absolute inset-0 bg-white/20 skew-x-12 translate-x-full animate-[shimmer_2s_infinite]"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 className="text-lg md:text-2xl font-black text-white uppercase tracking-widest mb-6 md:mb-8 flex items-center gap-2 md:gap-3 truncate"><Activity size={24} className="text-amber-400 flex-shrink-0"/> <span className="truncate">Идентичности (Навыки)</span></h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-8">
+                            <ProgressBar label="Атлет (Тело)" progress={categories.body} color="bg-amber-500" />
+                            <ProgressBar label="Структура (PM)" progress={categories.pm} color="bg-yellow-500" />
+                            <ProgressBar label="Мир (English)" progress={categories.english} color="bg-orange-400" />
+                            <ProgressBar label="Создатель (Контент)" progress={categories.content} color="bg-amber-300" />
+                            <ProgressBar label="Дух (Ритуалы)" progress={categories.spirit} color="bg-yellow-600" />
+                            <ProgressBar label="Return Rate" progress={returnRate} color="bg-gradient-to-r from-amber-400 to-yellow-600" />
+                        </div>
+                    </Card>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
+                        <NumericInput label="Энергия" hint="1-10" min={1} max={10} value={state.energyMetrics.energy} onChange={(v) => update('energyMetrics', {energy: v})} />
+                        <NumericInput label="Стресс" hint="1-10" min={1} max={10} color="red" value={state.energyMetrics.stress} onChange={(v) => update('energyMetrics', {stress: v})} />
+                    </div>
+                    
+                    <TipCard text="Главная метрика — Return Rate (Возврат в систему). Шкалы не обнуляются за пропуск, но Return Rate падает. Если ты упал, но вернулся (сделал микро-старт) — ты победил." icon={RotateCcw} />
+                </div>
+            );
+        };
+
+        const ToolsExportView = ({ state, copyToClipboard, update, setState, showToast }) => {
+            const [sunoInput, setSunoInput] = useState('');
+
+            const getObsidianTemplate = () => {
+                const e = state.energyMetrics, t = state.dailyTasks;
+                const notesStr = state.notes.savedDaily.length > 0 ? state.notes.savedDaily.map(n => `- ${n}`).join('\n') : 'Нет записей';
+                const langStr = state.languagePhrases.length > 0 ? state.languagePhrases.map(l => `- ${l}`).join('\n') : 'Нет записей';
+                return `# День: ${new Date().toLocaleDateString('ru-RU')}\n\n## Энергия\nСон: ${e.sleep}ч\nЭнергия: ${e.energy}/10\nСтресс: ${e.stress}/10\nГотовность: ${e.readiness}/10\n\n## Идентичности (База)\n- Структура (PM): ${t.pm ? 'Да' : 'Нет'}\n- Структура (Eng): ${t.english ? 'Да' : 'Нет'}\n- Атлет (Тело): ${t.body ? 'Тренировка' : t.cardio ? 'Только кардио' : 'Нет'}\n\n## Инсайты и Контент\n${notesStr}\n\n## Микро-Языки\n${langStr}\n\n## Ритуалы\n- Утро: ${t.waterAm && t.breathAm && t.prayerAm ? 'Да' : 'Частично'}\n- Вечер: ${t.cardio && t.hygienePm && t.breathPm && t.prayerPm ? 'Да' : 'Частично'}\n\n## Вечерний разбор\nЧто сделал:\nЧто слил:\nЧто улучшить:\nБлагодарен за:`;
+            };
+
+            const downloadMarkdownFile = () => {
+                triggerHaptic([10, 30]);
+                const text = getObsidianTemplate();
+                const blob = new Blob([text], { type: 'text/markdown;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                const dateStr = new Date().toISOString().split('T')[0];
+                link.href = url;
+                link.setAttribute("download", `${dateStr}_Markov_OS.md`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                showToast("Файл .md сгенерирован и скачан 💾");
+            };
+
+            const exportBackupJSON = () => {
+                triggerHaptic([10, 30]);
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+                const downloadAnchor = document.createElement('a');
+                const dateStr = new Date().toISOString().split('T')[0];
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `Markov_OS_Backup_${dateStr}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                showToast("Резервная копия JSON сохранена 🔐");
+            };
+
+            const importBackupJSON = (event) => {
+                const fileReader = new FileReader();
+                if(event.target.files.length === 0) return;
+                fileReader.readAsText(event.target.files[0], "UTF-8");
+                fileReader.onload = e => {
+                    try {
+                        const parsed = JSON.parse(e.target.result);
+                        if (parsed.currentTab && parsed.stats) {
+                            setState(parsed);
+                            showToast("Система успешно восстановлена из бэкапа! ⚡");
+                            triggerHaptic([40, 40, 40]);
+                        } else {
+                            showToast("Ошибка: Неверная структура файла", true);
+                        }
+                    } catch (err) {
+                        showToast("Ошибка при чтении файла бэкапа", true);
+                    }
+                };
+            };
+
+            const handleExportBoard = () => {
+                const t = state.dailyTasks;
+                const text = `НЕДЕЛЯ: PM + ENGLISH + CONTENT\n\nМИНИМУМ:\n[${t.breathAm||t.breathPm ? 'X' : ' '}] Дыхание (3 мин)\n[${t.pm ? 'X' : ' '}] PM\n[${t.english ? 'X' : ' '}] English\n[${t.body||t.cardio ? 'X' : ' '}] Тренировка\n[${t.content ? 'X' : ' '}] Контент\n[${t.prayerAm||t.prayerPm ? 'X' : ' '}] Манифест\n[ ] Сон 7.5ч\n\nПН [ ] ВТ [ ] СР [ ] ЧТ [ ] ПТ [ ] СБ [ ] ВС [ ]\n\nФРАЗА:\nНе идеальный день. Возврат в систему.\n\nАНТИ-СЛИВ:\nЕсли не хочешь — сделай микро-старт (2 мин).`;
+                copyToClipboard(text);
+            };
+
+            const addSunoIdea = () => {
+                if(!sunoInput.trim()) return;
+                const newIdeas = [...(state.sunoIdeas || []), sunoInput];
+                update('sunoIdeas', newIdeas);
+                setSunoInput('');
+            };
+
+            return (
+                <div className="space-y-8 md:space-y-10 animate-in fade-in zoom-in-95 duration-700">
+                    <h1 className="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg break-words">Инструменты</h1>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+                        <Card interactive className="space-y-4 md:space-y-6">
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 uppercase tracking-tight truncate"><Download className="text-amber-500 flex-shrink-0" size={28}/> <span className="truncate">Obsidian Vault</span></h2>
+                            <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed break-words">Прямая сборка дневного файла Markdown для перемещения в базу.</p>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <Button variant="primary" icon={Copy} className="flex-1 text-sm" onClick={() => copyToClipboard(getObsidianTemplate())}>Скопировать</Button>
+                                <Button variant="secondary" icon={Download} className="flex-1 text-sm" onClick={downloadMarkdownFile}>Скачать .md файл</Button>
+                            </div>
+                        </Card>
+
+                        <Card interactive className="space-y-4 md:space-y-6">
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 uppercase tracking-tight truncate"><Layout className="text-yellow-600 flex-shrink-0" size={28}/> <span className="truncate">Магнитная доска</span></h2>
+                            <p className="text-sm md:text-base text-slate-400 font-medium leading-relaxed break-words">Текст для заполнения физической доски на стену. Обновлять в Воскресенье.</p>
+                            <Button variant="secondary" icon={Copy} className="w-full text-sm md:text-lg" onClick={handleExportBoard}>Текст для доски</Button>
+                        </Card>
+
+                        <Card className="lg:col-span-2 bg-gradient-to-br from-[#121212] to-[#0a0a0a] space-y-6">
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 uppercase tracking-tight truncate"><Settings className="text-orange-400 flex-shrink-0" size={28}/> <span>Управление Ядром OS (Бэкапы)</span></h2>
+                            <p className="text-sm text-slate-400 font-medium leading-relaxed">Так как приложение работает без бэкенда на GitHub Pages, твой единственный сервер — память браузера. Сохраняй слепки системы, чтобы не потерять статистику уровней и базу SUNO.</p>
+                            <div className="flex flex-col sm:flex-row gap-4 items-center">
+                                <Button variant="secondary" className="w-full sm:w-auto" onClick={exportBackupJSON}>Скачать резервную копию (.json)</Button>
+                                <label className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-[#1a1a1a] border border-[#333333] text-amber-400 font-bold hover:bg-[#222222] cursor-pointer transition-all text-center">
+                                    <span>Восстановить из файла</span>
+                                    <input type="file" accept=".json" onChange={importBackupJSON} className="hidden" />
+                                </label>
+                            </div>
+                        </Card>
+                        
+                        <Card className="lg:col-span-2 bg-gradient-to-br from-[#121212] to-[#0a0a0a]">
+                            <h2 className="text-2xl md:text-3xl font-black text-white flex items-center gap-3 md:gap-4 mb-4 md:mb-6 uppercase tracking-tight truncate"><Music className="text-amber-400 flex-shrink-0" size={28}/> <span className="truncate">Творчество / SUNO</span></h2>
+                            <p className="text-sm md:text-base text-slate-400 mb-6 md:mb-8 font-medium break-words">Суббота (день) или свободное время. Банк идей для созидания без выгорания.</p>
+                            <div className="flex flex-col sm:flex-row gap-4 md:gap-5 mb-6 md:mb-8">
+                                <TextInput value={sunoInput} onChange={setSunoInput} placeholder="Идея, стиль, промпт..." className="flex-1 text-base md:text-lg" />
+                                <Button variant="primary" className="sm:w-[200px] md:w-[250px] text-sm md:text-lg" onClick={addSunoIdea}><Plus size={20} className="hidden sm:block"/> Сохранить</Button>
+                            </div>
+                            {state.sunoIdeas.length > 0 && (
+                                <div className="space-y-4 md:space-y-5 bg-[#0f0f0f] p-5 md:p-8 rounded-2xl md:rounded-3xl border border-[#262626] shadow-inner">
+                                    <h3 className="text-xs md:text-sm font-black text-slate-500 uppercase tracking-widest mb-3 md:mb-4">Банк идей:</h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+                                        {state.sunoIdeas.map((idea, i) => (
+                                            <div key={i} className="p-4 md:p-6 bg-[#1a1a1a]/80 rounded-2xl border border-[#333333] text-slate-200 flex items-start gap-3 md:gap-4 font-bold text-sm md:text-lg shadow-sm break-words">
+                                                <Music size={20} className="text-amber-500 flex-shrink-0 mt-0.5 md:mt-1 drop-shadow-sm" /> <span>{idea}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </Card>
                     </div>
                 </div>
+            );
+        };
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    ${NumInputHTML('Сон', 'energyMetrics.sleep', state.energyMetrics.sleep, 0, 16, 'часы')}
-                    ${NumInputHTML('Энергия', 'energyMetrics.energy', state.energyMetrics.energy, 1, 10, '1-10')}
-                    ${NumInputHTML('Стресс', 'energyMetrics.stress', state.energyMetrics.stress, 1, 10, '1-10', 'red')}
-                </div>
-            </div>`;
-        }
+        function App() {
+            const { state, setState, update, toggleTask, saveDailyNote, addLanguagePhrase, copyToClipboard, toast, showToast } = useAppState();
 
-        function openObsidianURI() {
-            const dateStr = new Date().toLocaleDateString('ru-RU');
-            const e = state.energyMetrics, t = state.dailyTasks;
-            
-            const content = `
-# День: ${dateStr}
+            const TABS = [
+                { id: 'dashboard', icon: Home, label: 'Сегодня' },
+                { id: 'schedule', icon: Clock, label: 'Расписание' },
+                { id: 'learning', icon: Brain, label: 'Обучение' },
+                { id: 'body', icon: Dumbbell, label: 'Тело' },
+                { id: 'content', icon: Smartphone, label: 'Контент' },
+                { id: 'rituals', icon: Wind, label: 'Ритуалы' },
+                { id: 'progress', icon: Trophy, label: 'Прогресс' },
+                { id: 'tools', icon: Settings, label: 'Экспорт' },
+            ];
 
-## Энергия
-- Сон: ${e.sleep}ч
-- Энергия: ${e.energy}/10
-- Стресс: ${e.stress}/10
-
-## Идентичности (База)
-- Структура (PM): ${t.pm ? 'Выполнено' : 'Пропуск'}
-- Структура (Eng): ${t.english ? 'Выполнено' : 'Пропуск'}
-- Атлет (Тело): ${t.body ? 'Тренировка' : t.cardio ? 'Только кардио' : 'Пропуск'}
-- Ритуалы: ${t.prayerAm && t.prayerPm ? 'Обеспечены' : 'Сбой'}
-
-## Вечерний разбор
-Что сделал: 
-Что слил: 
-Что улучшить: 
-Благодарен за: 
-            `.trim();
-
-            const title = `Markov_${dateStr.replace(/\./g, '-')}`;
-            // URI Schema for Obsidian
-            const uri = `obsidian://new?file=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}`;
-            
-            window.location.href = uri;
-            showToast("Отправлено в Obsidian 🚀");
-        }
-
-        function ViewTools() {
-            return `
-            <div class="space-y-8 animate-in fade-in">
-                <h1 class="text-3xl sm:text-4xl md:text-6xl font-black tracking-tighter text-white uppercase drop-shadow-lg">Инструменты</h1>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-                    <div class="glass-panel rounded-[2rem] p-6 space-y-6">
-                        <h2 class="text-2xl font-black text-white flex items-center gap-3 uppercase"><i data-lucide="download" class="w-6 h-6 text-amber-500"></i> Obsidian Export</h2>
-                        <p class="text-sm text-slate-400 font-medium">Создает новый файл в твоем локальном Obsidian через безопасный URI протокол. Все метрики и чекбоксы за сегодня.</p>
-                        ${ButtonHTML('Отправить в Obsidian', 'primary', 'download', 'openObsidianURI()')}
-                    </div>
-                </div>
-            </div>`;
-        }
-
-        // Fallbacks for empty views to satisfy the system 
-        function ViewLearning() { return `<div class="p-10 text-center text-slate-500">Обучение. Используйте Obsidian для глубоких записей.</div>`; }
-        function ViewBody() { return `<div class="p-10 text-center text-slate-500">Тело. Контроль в дашборде.</div>`; }
-        function ViewContent() { return `<div class="p-10 text-center text-slate-500">Контент-лестница. Фокус на создание.</div>`; }
-
-        // --- 6. ROUTING & RENDERING ---
-        const TABS = [
-            { id: 'dashboard', icon: 'home', label: 'Сегодня', render: ViewDashboard },
-            { id: 'schedule', icon: 'clock', label: 'Расписание', render: ViewSchedule },
-            // Removed redundant tabs per "minimalistic" requirement, integrated their logic into Today/Tools
-            { id: 'rituals', icon: 'wind', label: 'Ритуалы', render: ViewRituals },
-            { id: 'progress', icon: 'trophy', label: 'Прогресс', render: ViewProgress },
-            { id: 'tools', icon: 'settings', label: 'Экспорт', render: ViewTools }
-        ];
-
-        // Выносим генерацию HTML кнопок навигации в отдельную функцию
-        function renderNavigationHTML() {
-            const html = TABS.map(t => {
-                const active = state.currentTab === t.id;
-                const dClass = active ? 'bg-amber-500/10 text-amber-400 border-amber-500/30 shadow-[inset_0_0_20px_rgba(251,191,36,0.05)]' : 'text-slate-500 hover:text-slate-200 hover:bg-[#1a1a1a]';
-                return `
-                <button onclick="updateState({currentTab: '${t.id}'}, true)" class="w-full flex items-center gap-4 xl:gap-5 px-4 xl:px-6 py-3 xl:py-4 rounded-2xl transition-all duration-300 font-bold text-sm xl:text-lg uppercase tracking-wider ${dClass}">
-                    <i data-lucide="${t.icon}" class="w-5 h-5 flex-shrink-0 ${active ? 'text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.5)]' : ''}"></i> 
-                    <span class="truncate">${t.label}</span>
-                </button>`;
-            }).join('');
-            
-            document.getElementById('desktop-nav').innerHTML = html;
-
-            const mHtml = TABS.map(t => {
-                const active = state.currentTab === t.id;
-                const mClass = active ? 'text-amber-400 scale-105 -translate-y-1' : 'text-slate-500 hover:text-slate-300';
-                return `
-                <button onclick="updateState({currentTab: '${t.id}'}, true)" class="flex-1 flex flex-col items-center justify-center min-w-[64px] py-2 gap-1 transition-all pb-3 ${mClass}">
-                    <i data-lucide="${t.icon}" class="w-5 h-5 ${active ? 'drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]' : ''}"></i>
-                    <span class="text-[8px] font-black uppercase tracking-widest mt-1 truncate px-1">${t.label}</span>
-                </button>`;
-            }).join('');
-
-            document.getElementById('mobile-nav').innerHTML = mHtml;
-            lucide.createIcons();
-        }
-
-        function renderCurrentView() {
-            const tab = TABS.find(t => t.id === state.currentTab) || TABS[0];
-            const contentArea = document.getElementById('app-content');
-            
-            // Мягко глушим интервалы таймеров ПЕРЕД очисткой экрана, чтобы память не текла
-            if (activeTimers && Object.keys(activeTimers).length > 0) {
-                for (let id in activeTimers) {
-                    if (activeTimers[id].interval) clearInterval(activeTimers[id].interval);
+            const renderContent = () => {
+                switch (state.currentTab) {
+                    case 'dashboard': return <DashboardView state={state} update={update} toggleTask={toggleTask} showToast={showToast} />;
+                    case 'schedule': return <ScheduleView state={state} />;
+                    case 'learning': return <LearningView state={state} saveDailyNote={saveDailyNote} addLanguagePhrase={addLanguagePhrase} />;
+                    case 'body': return <BodyView state={state} update={update} toggleTask={toggleTask} />;
+                    case 'content': return <ContentView state={state} update={update} saveDailyNote={saveDailyNote} />;
+                    case 'rituals': return <RitualsView state={state} toggleTask={toggleTask} />;
+                    case 'progress': return <ProgressView state={state} update={update} />;
+                    case 'tools': return <ToolsExportView state={state} copyToClipboard={copyToClipboard} update={update} setState={setState} showToast={showToast} />;
+                    default: return <DashboardView state={state} update={update} toggleTask={toggleTask} showToast={showToast} />;
                 }
-            }
-            // Не сносим breathInterval, если вкладка "rituals" просто обновляется изнутри
-            
-            // Плавный переход контента (Fade Animation)
-            contentArea.style.opacity = '0';
-            contentArea.style.transform = 'translateY(8px)';
-            
-            setTimeout(() => {
-                contentArea.innerHTML = tab.render();
-                lucide.createIcons();
-                renderNavigationHTML(); // Обновляем HTML каркас кнопок меню
-                
-                contentArea.style.opacity = '1';
-                contentArea.style.transform = 'translateY(0)';
-            }, 150);
+            };
+
+            return (
+                <div className={`min-h-screen ${THEME.bg} text-slate-200 font-sans selection:bg-amber-500/30 flex flex-col lg:flex-row overflow-x-hidden antialiased`}>
+                    
+                    {/* Toast Notification */}
+                    <div className={`fixed top-4 md:top-8 left-1/2 -translate-x-1/2 z-[100] transition-all duration-500 ease-out pointer-events-none w-[95%] md:w-auto max-w-lg ${toast.visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 -translate-y-10 scale-95'}`}>
+                        <div className={`px-4 md:px-6 py-4 md:py-5 rounded-2xl font-bold shadow-2xl flex items-center gap-3 md:gap-4 border-[1.5px] backdrop-blur-2xl ${toast.isAlert ? 'bg-rose-950/95 text-rose-100 border-rose-500/50 shadow-[0_15px_50px_rgba(251,113,133,0.3)]' : 'bg-[#121212]/95 text-white border-amber-500/50 shadow-[0_15px_50px_rgba(251,191,36,0.25)]'}`}>
+                            {toast.isAlert ? <ShieldAlert size={24} className="text-rose-400 flex-shrink-0" /> : <Sparkles size={24} className="text-amber-400 flex-shrink-0" />} 
+                            <span className="text-sm md:text-lg leading-tight break-words">{toast.msg}</span>
+                        </div>
+                    </div>
+
+                    {/* Desktop Sidebar */}
+                    <aside className={`hidden lg:flex flex-col w-[280px] xl:w-[320px] ${THEME.panel} border-r ${THEME.panelBorder} p-6 xl:p-8 h-screen sticky top-0 z-40 shadow-[15px_0_40px_rgba(0,0,0,0.8)]`}>
+                        <div className="mb-12 xl:mb-16 relative group cursor-default select-none">
+                            <div className="absolute -inset-4 bg-gradient-to-r from-amber-400 to-yellow-600 rounded-2xl blur-xl opacity-10 group-hover:opacity-20 transition duration-1000 group-hover:duration-200"></div>
+                            <h1 className="relative text-4xl xl:text-5xl font-black tracking-widest text-white drop-shadow-md break-words">MARKOV<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 to-amber-500">OS</span></h1>
+                            <p className="relative text-[10px] xl:text-[11px] text-slate-400 font-black tracking-widest mt-3 xl:mt-4 flex items-center gap-2 uppercase">System Elite <span className={`w-2 h-2 xl:w-2.5 xl:h-2.5 rounded-full shadow-[0_0_12px_currentColor] ${state.currentMode === 'min' ? 'bg-rose-500 text-rose-500' : 'bg-amber-400 text-amber-400 animate-pulse'}`}></span></p>
+                        </div>
+                        
+                        <nav className="flex-1 space-y-2 xl:space-y-3 overflow-y-auto hide-scrollbar pr-2 pb-10">
+                            {TABS.map(tab => {
+                                const IconComp = tab.icon;
+                                const active = state.currentTab === tab.id;
+                                return (
+                                    <button 
+                                        key={tab.id} onClick={() => { triggerHaptic(10); update('currentTab', tab.id); }}
+                                        className={`w-full flex items-center gap-4 xl:gap-5 px-4 xl:px-6 py-3 xl:py-4 rounded-2xl transition-all duration-300 font-bold text-sm xl:text-lg uppercase tracking-wider touch-manipulation ${active ? THEME.accentSoft : 'text-slate-500 hover:text-slate-200 hover:bg-[#1a1a1a]'}`}
+                                    >
+                                        <IconComp size={20} className={`flex-shrink-0 ${active ? 'text-amber-400 drop-shadow-[0_0_12px_rgba(251,191,36,0.5)]' : ''}`} /> 
+                                        <span className="truncate">{tab.label}</span>
+                                    </button>
+                                )
+                            })}
+                        </nav>
+                    </aside>
+
+                    {/* Main Content Area */}
+                    <main className="flex-1 p-4 sm:p-6 md:p-10 lg:p-12 xl:p-16 w-full max-w-full min-h-screen relative z-10 pb-28 md:pb-32 lg:pb-16 overflow-hidden">
+                        <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full h-[800px] bg-amber-500 opacity-[0.015] blur-[150px] pointer-events-none -z-10"></div>
+                        <div className="max-w-[1200px] mx-auto w-full">
+                            {renderContent()}
+                        </div>
+                    </main>
+
+                    {/* Mobile Bottom Navigation */}
+                    <nav className={`lg:hidden fixed bottom-0 left-0 right-0 ${THEME.panel} border-t ${THEME.panelBorder} flex overflow-x-auto hide-scrollbar z-50 shadow-[0_-20px_50px_rgba(0,0,0,0.9)] px-1 pt-2 pb-2`}>
+                        {TABS.map(tab => {
+                            const IconComp = tab.icon;
+                            const active = state.currentTab === tab.id;
+                            return (
+                                <button 
+                                    key={tab.id} onClick={() => { triggerHaptic(10); update('currentTab', tab.id); }}
+                                    className={`flex-1 flex flex-col items-center justify-center min-w-[64px] sm:min-w-[72px] py-2 gap-1 transition-all duration-300 touch-manipulation pb-3 ${active ? 'text-amber-400 scale-105 -translate-y-1' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    <IconComp size={20} className={`${active ? 'drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]' : ''}`} />
+                                    <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest mt-1 truncate max-w-full px-1">{tab.label}</span>
+                                </button>
+                            )
+                        })}
+                    </nav>
+                </div>
+            );
         }
 
-        // Boot
-        window.addEventListener('DOMContentLoaded', () => {
-            initApp();
-        });
-
+        const rootElement = document.getElementById('root');
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(<App />);
     </script>
 </body>
 </html>
