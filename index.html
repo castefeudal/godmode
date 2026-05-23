@@ -104,10 +104,6 @@
     </div>
 
     <script type="text/babel">
-        // Это локальная защита для статического HTML-файла.
-        // Она предотвращает случайные изменения гостями, но не является серверной авторизацией.
-        // Для полной безопасности нужен backend.
-
         const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
         const STORAGE_KEY = 'markov_os_v15_hyper_elite_final_v2';
@@ -168,7 +164,7 @@
                 id: 'morning',
                 title: 'Утреннее дыхание',
                 shortTitle: 'Утро',
-                description: 'Ровный старт дня и фокус без перегруза.',
+                description: 'Ровный старт дня.',
                 patternLabel: '4–4–4–4',
                 phases: [
                     { label: 'Вдох', seconds: 4 },
@@ -183,7 +179,7 @@
                 id: 'evening',
                 title: 'Вечернее дыхание',
                 shortTitle: 'Вечер',
-                description: 'Медленный выдох, чтобы снизить темп перед сном.',
+                description: 'Медленнее темп перед сном.',
                 patternLabel: '4–7–8',
                 phases: [
                     { label: 'Вдох', seconds: 4 },
@@ -250,20 +246,20 @@
                 { time: '10:45', anchor: 'После ухода', title: 'Лёгкая зарядка', taskIds: ['morningCharge'], note: '2–5 минут суставной разминки для тонуса.' },
                 { time: '11:00', anchor: 'Завтрак', title: 'Завтрак и языковые спринты', taskIds: ['breakfast', 'spanish', 'chinese'], note: 'Изучение языков за едой (до 15 мин на спринт).' },
                 { time: '11:45', anchor: 'После завтрака', title: 'Главная задача дня', taskIds: ['mainTask'], note: 'Фокусированная работа над вашим ключевым проектом.' },
-                { time: '12:45', anchor: 'После главной задачи', title: 'Project Management', taskIds: ['pm'], note: 'Обучение, разбор кейсов и конспектирование.' },
+                { time: '12:45', anchor: 'После главной задачи', title: 'Project Management', taskIds: ['pm'], note: 'обучение и конспект.' },
                 { time: '13:45', anchor: 'После PM', title: 'Английский язык', taskIds: ['english'], note: 'Практика речи и разбор материалов до 30 минут.' },
                 { time: '14:20', anchor: 'После учебы', title: 'Еда и сборы', taskIds: [], note: 'Буферное время для подготовки и обеда.' },
                 { time: '15:20', anchor: 'Перед работой', title: 'Дорога на работу', taskIds: [], note: 'Спокойный переход к рабочему блоку.' },
                 { time: '16:00', anchor: 'Начало работы', title: 'Старт рабочей смены', taskIds: ['workStart'], note: 'Включение в рабочие процессы в ' + cfg.workPlaceLabel + '.' },
                 { time: 'В процессе', anchor: 'Перерыв', title: cfg.workoutLabel, taskIds: ['body'], note: 'Интенсивная тренировка встроена в график дня.' },
                 { time: '19:00', anchor: 'Рабочий перерыв', title: 'Приём пищи на работе', taskIds: ['workMeal'], note: 'Плановое питание по расписанию.' },
-                { time: '22:40', anchor: 'Приехал домой', title: 'Возвращение домой', taskIds: [], note: 'Завершение внешнего контура, чистая вода.' },
-                { time: cfg.cardioTime, anchor: 'После прихода', title: 'Кардио сессия', taskIds: ['cardio'], note: cfg.cardioDuration + ' лёгкого аэробного движения.' },
+                { time: '22:40', anchor: 'Приехал домой', title: 'Приехал домой', taskIds: [], note: 'Завершение внешнего контура, чистая вода.' },
+                { time: cfg.cardioTime, anchor: 'После прихода', title: 'Кардио сессия', taskIds: ['cardio'], note: cfg.cardioDuration + ' лёгкой ходьбы.' },
                 { time: '23:25', anchor: 'После кардио', title: 'Легкий ужин', taskIds: ['dinner'], note: 'Чистый белок и клетчатка для восстановления.' },
                 { time: '23:50', anchor: 'После ужина', title: 'Плановый отдых', taskIds: ['plannedProcrastination'], note: 'Разрешённая разгрузка ума без чувства вины.' },
                 { time: '00:15', anchor: 'Вечерний блок', title: 'Вечерний уход за собой', taskIds: ['eveningHygiene', 'faceCare'], note: 'Гигиена зубов, очищение лица, подготовка ко сну.' },
                 { time: '00:30', anchor: 'Перед сном', title: 'Ночные добавки', taskIds: ['nightSupplements'], note: 'Прием нутрицевтиков по вечернему плану.' },
-                { time: cfg.sleepTime, anchor: 'Конец дня', title: 'Качественный сон', taskIds: ['sleep'], note: 'Своевременное выключение для глубокого восстановления.' }
+                { time: cfg.sleepTime, anchor: 'Конец дня', title: 'Сон', taskIds: ['sleep'], note: 'Своевременное выключение для глубокого восстановления.' }
             ];
         };
 
@@ -420,7 +416,8 @@
             Compass: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm4.24-14.24l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z',
             History: 'M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5',
             RotateCcw: 'M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10',
-            Lock: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 11V7a3 3 0 0 0-6 0v4'
+            Lock: 'M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 11V7a3 3 0 0 0-6 0v4',
+            Sliders: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 12h6'
         };
 
         const IconBase = React.memo(({ iconName, size = 16, className = "", strokeWidth = 2 }) => {
@@ -502,7 +499,7 @@
                 workoutLabel: 'Силовая тренировка (1 час)',
                 showStoicQuotes: true,
                 showGuestBreathing: true,
-                guestMessage: 'Вы находитесь в защищенном гостевом режиме. Доступны дыхательные сессии. Персональные логи и метрики скрыты.'
+                guestMessage: 'Гостевой режим: личные данные скрыты.'
             },
             supplementPlan: {
                 evening: [
@@ -624,6 +621,7 @@
         const sanitizeStateForStorage = (state) => {
             return {
                 ...state,
+                deepFocusActive: false,
                 access: {
                     ...state.access,
                     mode: ACCESS_MODES.LOCKED,
@@ -642,7 +640,7 @@
             state.currentMode = VALID_MODES.includes(rawState.currentMode) ? rawState.currentMode : INITIAL_STATE.currentMode;
             
             if (rawState.circadianOverride) state.circadianOverride = rawState.circadianOverride;
-            state.deepFocusActive = !!rawState.deepFocusActive;
+            state.deepFocusActive = false;
             if (rawState.lastLoginDate) state.lastLoginDate = String(rawState.lastLoginDate);
             if (rawState.streakCounter) state.streakCounter = Math.max(0, Number(rawState.streakCounter) || 0);
             if (rawState.contentLadder) state.contentLadder = Number(rawState.contentLadder);
@@ -680,8 +678,8 @@
             state.access.ownerPinHash = String(state.access.ownerPinHash || DEFAULT_OWNER_PIN_HASH);
             state.access.guestClicks = clampInteger(state.access.guestClicks, 0, 0, 1000000);
             state.access.lastOwnerLoginAt = String(state.access.lastOwnerLoginAt || '');
-            state.access.sessionStartedAt = String(state.access.sessionStartedAt || '');
-            state.access.lastActivityAt = String(state.access.lastActivityAt || '');
+            state.access.sessionStartedAt = '';
+            state.access.lastActivityAt = '';
 
             const rMetrics = rawState.energyMetrics || {};
             state.energyMetrics = {
@@ -753,6 +751,17 @@
         const formatFullDate = (date) => date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
         const formatTime = (date) => date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
+        const Toast = React.memo(({ toast }) => {
+            if (!toast.visible) return null;
+            return (
+                <div className="fixed bottom-20 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white shadow-2xl flex items-center gap-3 font-bold text-xs tracking-wide uppercase max-w-sm w-[calc(100%-2rem)] sm:w-auto text-center justify-center animate-in fade-in">
+                    <span>{toast.msg}</span>
+                    {toast.xp && <span className="text-amber-400 font-mono font-black bg-amber-500/10 px-2 py-0.5 rounded">{toast.xp}</span>}
+                </div>
+            );
+        });
+        Toast.displayName = 'Toast';
+
         const LockScreen = ({ state, setState, showToast }) => {
             const [pin, setPin] = useState('');
             const [error, setError] = useState('');
@@ -773,7 +782,7 @@
                                 lastActivityAt: new Date().toISOString()
                             }
                         }));
-                        showToast('Вход владельца выполнен.');
+                        showToast('Вход выполнен.');
                     } else {
                         setError('Неверный PIN-код доступа.');
                         setPin('');
@@ -821,7 +830,7 @@
                             </div>
                             {error && <p className="text-xs font-bold text-red-400 uppercase tracking-wide">{error}</p>}
                             <button type="submit" className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 text-neutral-950 font-black uppercase text-xs tracking-wider shadow-lg hover:brightness-105 active:scale-[0.99] transition-all">
-                                Подтвердить подлинность
+                                Войти
                             </button>
                         </form>
 
@@ -833,10 +842,10 @@
 
                         <div className="space-y-2">
                             <button type="button" onClick={handleGuestLogin} className="w-full py-3 rounded-xl bg-[#1c1c1c] border border-[#333] text-neutral-200 font-bold uppercase text-xs tracking-wider hover:bg-[#262626] active:scale-[0.99] transition-all">
-                                Открыть публичный демо-слой
+                                Гостевой режим
                             </button>
                             <p className="text-[10px] text-neutral-500 font-medium leading-normal max-w-[250px] mx-auto">
-                                Гостевой режим скрывает личные трекеры, логи и конфигурации, оставляя доступным базовый инструментарий.
+                                Личные данные скрыты
                             </p>
                         </div>
                     </div>
@@ -860,7 +869,7 @@
                         <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Режим управления (Владелец)
                     </span>
                     <button type="button" onClick={lockSite} className="text-[10px] px-3 py-1.5 rounded-lg bg-[#1c1c1c] border border-[#333] text-neutral-300 font-bold uppercase transition-colors hover:text-red-400">
-                        Блокировка терминала
+                        Выйти
                     </button>
                 </div>
             );
@@ -873,7 +882,7 @@
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         <div>
                             <h1 className="text-2xl font-black text-white uppercase tracking-tight flex items-baseline gap-2 flex-wrap">
-                                <span>Контур дня // {formatDayName(now)}</span>
+                                <span>Сегодня // {formatDayName(now)}</span>
                                 <span className="text-xs font-mono text-neutral-500 font-bold normal-case">({formatFullDate(now)})</span>
                             </h1>
                             <p className="text-xs font-medium text-neutral-400 mt-1 uppercase tracking-wider">
@@ -891,15 +900,15 @@
                             <span className="text-neutral-200 font-mono font-bold text-sm">{dayAnalytics.completed} / {dayAnalytics.total}</span>
                         </div>
                         <div className="space-y-0.5">
-                            <span className="text-neutral-500 block uppercase font-bold text-[10px]">Ключевые якоря</span>
+                            <span className="text-neutral-500 block uppercase font-bold text-[10px]">Главные задачи</span>
                             <span className="text-orange-400 font-mono font-bold text-sm">{dayAnalytics.coreCompleted} / {dayAnalytics.coreTotal}</span>
                         </div>
                         <div className="space-y-0.5">
-                            <span className="text-neutral-500 block uppercase font-bold text-[10px]">Степень сборки</span>
+                            <span className="text-neutral-500 block uppercase font-bold text-[10px]">Выполнение</span>
                             <span className="text-amber-400 font-mono font-bold text-sm">{dayAnalytics.percent}%</span>
                         </div>
                         <div className="space-y-0.5">
-                            <span className="text-neutral-500 block uppercase font-bold text-[10px]">Текущий статус</span>
+                            <span className="text-neutral-500 block uppercase font-bold text-[10px]">Статус</span>
                             <span className={`font-bold uppercase tracking-wide truncate block text-sm ${dayAnalytics.statusColor}`}>{dayAnalytics.status}</span>
                         </div>
                     </div>
@@ -988,6 +997,170 @@
         ));
         TipCard.displayName = 'TipCard';
 
+        const BreathingTimer = ({ type = 'morning', state, compact = false, publicMode = false, onCompleteAction }) => {
+            const preset = BREATHING_PRESETS[type] || BREATHING_PRESETS.morning;
+
+            const [isRunning, setIsRunning] = useState(false);
+            const [phaseIndex, setPhaseIndex] = useState(0);
+            const [secondsLeft, setSecondsLeft] = useState(preset.phases[0].seconds);
+            const [cycle, setCycle] = useState(1);
+
+            const timerRef = useRef(null);
+            const phaseIndexRef = useRef(0);
+            const cycleRef = useRef(1);
+            const secondsLeftRef = useRef(preset.phases[0].seconds);
+
+            const clearTimer = () => {
+                if (timerRef.current) {
+                    clearInterval(timerRef.current);
+                    timerRef.current = null;
+                }
+            };
+
+            useEffect(() => {
+                return () => clearTimer();
+            }, []);
+
+            useEffect(() => {
+                clearTimer();
+                setIsRunning(false);
+                phaseIndexRef.current = 0;
+                cycleRef.current = 1;
+                secondsLeftRef.current = preset.phases[0].seconds;
+                setPhaseIndex(0);
+                setCycle(1);
+                setSecondsLeft(preset.phases[0].seconds);
+            }, [type]);
+
+            const finishBreathing = () => {
+                clearTimer();
+                setIsRunning(false);
+
+                if (!publicMode && typeof onCompleteAction === 'function') {
+                    onCompleteAction(type);
+                }
+                AudioEngine.playSuccess(state?.settings?.soundEnabled);
+            };
+
+            const startBreathing = () => {
+                if (isRunning) return;
+                clearTimer();
+
+                phaseIndexRef.current = 0;
+                cycleRef.current = 1;
+                secondsLeftRef.current = preset.phases[0].seconds;
+
+                setPhaseIndex(0);
+                setCycle(1);
+                setSecondsLeft(preset.phases[0].seconds);
+                setIsRunning(true);
+
+                timerRef.current = setInterval(() => {
+                    secondsLeftRef.current -= 1;
+
+                    if (secondsLeftRef.current > 0) {
+                        setSecondsLeft(secondsLeftRef.current);
+                        return;
+                    }
+
+                    const nextPhase = phaseIndexRef.current + 1;
+
+                    if (nextPhase < preset.phases.length) {
+                        phaseIndexRef.current = nextPhase;
+                        secondsLeftRef.current = preset.phases[nextPhase].seconds;
+
+                        setPhaseIndex(nextPhase);
+                        setSecondsLeft(secondsLeftRef.current);
+                        AudioEngine.playPhaseChange(state?.settings?.soundEnabled);
+                        return;
+                    }
+
+                    const nextCycle = cycleRef.current + 1;
+
+                    if (nextCycle <= preset.cycles) {
+                        cycleRef.current = nextCycle;
+                        phaseIndexRef.current = 0;
+                        secondsLeftRef.current = preset.phases[0].seconds;
+
+                        setCycle(nextCycle);
+                        setPhaseIndex(0);
+                        setSecondsLeft(secondsLeftRef.current);
+                        AudioEngine.playPhaseChange(state?.settings?.soundEnabled);
+                        return;
+                    }
+
+                    finishBreathing();
+                }, 1000);
+            };
+
+            const resetBreathing = () => {
+                clearTimer();
+                setIsRunning(false);
+
+                phaseIndexRef.current = 0;
+                cycleRef.current = 1;
+                secondsLeftRef.current = preset.phases[0].seconds;
+
+                setPhaseIndex(0);
+                setCycle(1);
+                setSecondsLeft(preset.phases[0].seconds);
+                AudioEngine.playClickReset(state?.settings?.soundEnabled);
+            };
+
+            const currentPhase = preset.phases[phaseIndex];
+            const colorTone = preset.tone === 'blue' ? 'border-blue-500 text-blue-400 bg-blue-500/10' : 'border-amber-500 text-amber-400 bg-amber-500/10';
+
+            if (compact) {
+                return (
+                    <div className="p-3.5 bg-[#121212] border border-[#262626] rounded-xl flex items-center justify-between gap-3 shadow-sm">
+                        <div className="min-w-0">
+                            <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                                <span className={`w-1.5 h-1.5 rounded-full ${preset.tone === 'blue' ? 'bg-blue-400' : 'bg-amber-400'}`}></span>
+                                {preset.title}
+                            </h4>
+                            <p className="text-xs text-neutral-400 truncate mt-0.5">
+                                {isRunning ? `${currentPhase.label}: ${secondsLeft} сек [${cycle}/${preset.cycles}]` : preset.description}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={isRunning ? resetBreathing : startBreathing}
+                            className="px-3 py-1.5 bg-[#1c1c1c] border border-[#333] hover:border-amber-500/30 text-neutral-200 rounded-lg text-xs font-bold uppercase min-h-[36px]"
+                        >
+                            {isRunning ? 'Сброс' : 'Начать'}
+                        </button>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="p-5 bg-[#0d0d0d] border border-[#262626] rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="space-y-1 text-center sm:text-left">
+                        <h4 className="text-base font-bold text-white uppercase flex items-center justify-center sm:justify-start gap-2">
+                            {preset.title} <span className="text-xs font-mono font-normal normal-case opacity-50">({preset.patternLabel})</span>
+                        </h4>
+                        <p className="text-sm text-neutral-400 max-w-sm">{preset.description}</p>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-end">
+                        {isRunning && (
+                            <div className={`px-4 py-2 rounded-xl border font-mono font-bold text-xs ${colorTone} flex items-center gap-3`}>
+                                <span className="uppercase tracking-wider">{currentPhase.label}</span>
+                                <span className="text-sm bg-black/40 px-1.5 py-0.5 rounded">{secondsLeft}с</span>
+                                <span className="opacity-50">Цикл {cycle}/{preset.cycles}</span>
+                            </div>
+                        )}
+
+                        <div className="flex gap-1.5">
+                            <button type="button" onClick={isRunning ? resetBreathing : startBreathing} className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs uppercase rounded-xl min-h-[38px]">
+                                {isRunning ? 'Сброс' : 'Старт'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const FocusTimer = ({ defaultMinutes, taskName, taskId, category, xpReward, onCompleteTask, state, update, setGlobalFocusId, globalFocusId, readOnly=false }) => {
             const [timeLeft, setTimeLeft] = useState(defaultMinutes * 60);
             const [isActive, setIsActive] = useState(false);
@@ -1001,6 +1174,8 @@
             
             const totalSeconds = useMemo(() => (isMicro ? 3 : defaultMinutes) * 60, [isMicro, defaultMinutes]);
             
+            const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
+
             useEffect(() => { 
                 setTimeLeft(totalSeconds); 
                 completedTriggered.current = false;
@@ -1068,7 +1243,6 @@
 
             if (defaultMinutes <= 0) return null;
             if (state.deepFocusActive && globalFocusId !== taskId) return null;
-
             if (readOnly) return null;
 
             if (!isOpen) return (
@@ -1102,139 +1276,6 @@
                             {isActive ? 'Пауза' : 'Старт'}
                         </button>
                         <button type="button" aria-label="Сбросить таймер" onClick={handleReset} className="p-2 rounded-lg bg-[#141414] border border-[#262626] text-neutral-300 min-h-[38px] min-w-[38px] flex items-center justify-center"><IconBase iconName="RotateCcw" size={14}/></button>
-                    </div>
-                </div>
-            );
-        };
-
-        const BreathingTimer = ({ type = 'morning', state, compact = false, publicMode = false, onCompleteAction }) => {
-            const preset = BREATHING_PRESETS[type] || BREATHING_PRESETS.morning;
-            
-            const [isRunning, setIsRunning] = useState(false);
-            const [phaseIndex, setPhaseIndex] = useState(0);
-            const [secondsLeft, setSecondsLeft] = useState(preset.phases[0].seconds);
-            const [cycle, setCycle] = useState(1);
-            const [completed, setCompleted] = useState(false);
-            
-            const timerRef = useRef(null);
-            
-            const clearTimer = () => { if (timerRef.current) clearInterval(timerRef.current); };
-            
-            useEffect(() => {
-                return () => clearTimer();
-            }, []);
-
-            useEffect(() => {
-                handleReset();
-            }, [type]);
-
-            const handleStart = () => {
-                clearTimer();
-                setIsRunning(true);
-                setCompleted(false);
-                setCycle(1);
-                setPhaseIndex(0);
-                setSecondsLeft(preset.phases[0].seconds);
-
-                timerRef.current = setInterval(() => {
-                    setSecondsLeft(prev => {
-                        if (prev <= 1) {
-                            let nextPhase = 0;
-                            let nextCycle = cycle;
-                            
-                            setPhaseIndex(currPhase => {
-                                if (currPhase + 1 >= preset.phases.length) {
-                                    nextPhase = 0;
-                                    setCycle(currCycle => {
-                                        if (currCycle >= preset.cycles) {
-                                            setIsRunning(false);
-                                            clearTimer();
-                                            setCompleted(true);
-                                            if (!publicMode && onCompleteAction) {
-                                                onCompleteAction();
-                                            }
-                                            return currCycle;
-                                        }
-                                        nextCycle = currCycle + 1;
-                                        return currCycle + 1;
-                                    });
-                                } else {
-                                    nextPhase = currPhase + 1;
-                                }
-                                return nextPhase;
-                            });
-
-                            if (state?.settings?.soundEnabled !== false) {
-                                AudioEngine.playPhaseChange(true);
-                            }
-                            return preset.phases[nextPhase].seconds;
-                        }
-                        return prev - 1;
-                    });
-                }, 1000);
-            };
-
-            const handleReset = () => {
-                setIsRunning(false);
-                clearTimer();
-                setPhaseIndex(0);
-                setCycle(1);
-                setSecondsLeft(preset.phases[0].seconds);
-                setCompleted(false);
-                AudioEngine.playClickReset(state?.settings?.soundEnabled);
-            };
-
-            const currentPhase = preset.phases[phaseIndex];
-            const colorTone = preset.tone === 'blue' ? 'border-blue-500 text-blue-400 bg-blue-500/10' : 'border-amber-500 text-amber-400 bg-amber-500/10';
-
-            if (compact) {
-                return (
-                    <div className="p-3.5 bg-[#121212] border border-[#262626] rounded-xl flex items-center justify-between gap-3 shadow-sm">
-                        <div className="min-w-0">
-                            <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                                <span className={`w-1.5 h-1.5 rounded-full ${preset.tone === 'blue' ? 'bg-blue-400' : 'bg-amber-400'}`}></span>
-                                {preset.title}
-                            </h4>
-                            <p className="text-xs text-neutral-400 truncate mt-0.5">
-                                {isRunning ? `${currentPhase.label}: ${secondsLeft} сек [${cycle}/${preset.cycles}]` : completed ? 'Успешно завершено' : preset.description}
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={isRunning ? handleReset : handleStart}
-                            className="px-3 py-1.5 bg-[#1c1c1c] border border-[#333] hover:border-amber-500/30 text-neutral-200 rounded-lg text-xs font-bold uppercase min-h-[36px]"
-                        >
-                            {isRunning ? 'Сброс' : completed ? 'Заново' : 'Начать'}
-                        </button>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="p-5 bg-[#0d0d0d] border border-[#262626] rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="space-y-1 text-center sm:text-left">
-                        <h4 className="text-base font-bold text-white uppercase flex items-center justify-center sm:justify-start gap-2">
-                            {preset.title} <span className="text-xs font-mono font-normal normal-case opacity-50">({preset.patternLabel})</span>
-                        </h4>
-                        <p className="text-sm text-neutral-400 max-w-sm">{preset.description}</p>
-                    </div>
-
-                    <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-end">
-                        {isRunning ? (
-                            <div className={`px-4 py-2 rounded-xl border font-mono font-bold text-xs ${colorTone} flex items-center gap-3`}>
-                                <span className="uppercase tracking-wider">{currentPhase.label}</span>
-                                <span className="text-sm bg-black/40 px-1.5 py-0.5 rounded">{secondsLeft}с</span>
-                                <span className="opacity-50">Цикл {cycle}/{preset.cycles}</span>
-                            </div>
-                        ) : completed ? (
-                            <span className="text-xs font-bold text-green-400 uppercase tracking-wider bg-green-500/10 border border-green-500/20 px-3 py-2 rounded-xl">Выполнено</span>
-                        ) : null}
-
-                        <div className="flex gap-1.5">
-                            <button type="button" onClick={isRunning ? handleReset : handleStart} className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs uppercase rounded-xl min-h-[38px]">
-                                {isRunning ? 'Сброс' : 'Старт'}
-                            </button>
-                        </div>
                     </div>
                 </div>
             );
@@ -1344,7 +1385,7 @@
                         else if (taskId === 'workStart') { labelText = "Старт рабочей смены"; cat = "pm"; }
                         else if (taskId === 'body') { labelText = "Силовая сессия"; cat = "body"; xp = 20; }
                         else if (taskId === 'workMeal') { labelText = "Прием пищи на работе"; cat = "body"; }
-                        else if (taskId === 'homeArrival') { labelText = "Возвращение домой"; }
+                        else if (taskId === 'homeArrival') { labelText = "Приехал домой"; }
                         else if (taskId === 'cardio') { labelText = "Кардио сессия"; cat = "body"; xp = 15; }
                         else if (taskId === 'dinner') { labelText = "Легкий ужин"; cat = "body"; }
                         else if (taskId === 'plannedProcrastination') { labelText = "Разрешенный отдых"; }
@@ -1445,7 +1486,7 @@
                             
                             {['NORM', 'MAX'].includes(state.currentMode) && (
                                 <div className="p-3.5 bg-[#0a0a0a] rounded-xl border border-[#1f1f1f] space-y-2">
-                                    <CheckItem id="pm" anchor="12:45" disabled={wBlock} checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', 15)} label="Project Management" subLabel="Изучение теории управления и фиксация выводов." mode={state.currentMode} />
+                                    <CheckItem id="pm" anchor="12:45" disabled={wBlock} checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', 15)} label="Project Management" subLabel="обучение и конспект." mode={state.currentMode} />
                                     {!state.dailyTasks.pm && <FocusTimer defaultMinutes={(MODES[state.currentMode]?.pmTime ?? 60)} taskName="PM Обучение" taskId="pm" category="pm" xpReward={15} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} readOnly={wBlock} />}
                                 </div>
                             )}
@@ -1473,8 +1514,8 @@
 
                         <div className="p-4 bg-[#121212] border border-[#262626] rounded-xl space-y-3">
                             <h4 className="text-xs font-bold text-amber-500 uppercase tracking-wider border-b border-[#222] pb-1">Вечерний контур и разгрузка</h4>
-                            <CheckItem id="homeArrival" anchor={state.personalConfig.homeArrivalTime} disabled={wBlock} checked={state.dailyTasks.homeArrival} timeLog={state.taskTimestamps.homeArrival} onChange={() => toggleTask('homeArrival', 'spirit', 5)} label="Возвращение домой" subLabel="Удаление фонового шума, переход к отдыху." mode={state.currentMode} />
-                            <CheckItem id="cardio" anchor={state.personalConfig.cardioTime} disabled={wBlock} checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио сессия" subLabel="Легкая ходьба для поддержания дефицита калорий." mode={state.currentMode} />
+                            <CheckItem id="homeArrival" anchor={state.personalConfig.homeArrivalTime} disabled={wBlock} checked={state.dailyTasks.homeArrival} timeLog={state.taskTimestamps.homeArrival} onChange={() => toggleTask('homeArrival', 'spirit', 5)} label="Приехал домой" subLabel="Удаление фонового шума, переход к отдыху." mode={state.currentMode} />
+                            <CheckItem id="cardio" anchor={state.personalConfig.cardioTime} disabled={wBlock} checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио сессия" subLabel="лёгкая ходьба для поддержания дефицита калорий." mode={state.currentMode} />
                             <CheckItem id="dinner" anchor="23:25" disabled={wBlock} checked={state.dailyTasks.dinner} timeLog={state.taskTimestamps.dinner} onChange={() => toggleTask('dinner', 'body', 10)} label="Легкий ужин" subLabel="Заключительный прием пищи (белок + клетчатка)." mode={state.currentMode} />
                             <CheckItem id="plannedProcrastination" anchor="23:50" disabled={wBlock} checked={state.dailyTasks.plannedProcrastination} timeLog={state.taskTimestamps.plannedProcrastination} onChange={() => toggleTask('plannedProcrastination', 'spirit', 5)} label="Плановый отдых" subLabel="Легитимное отключение от задач без чувства вины." mode={state.currentMode} />
                             <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#222]/50">
@@ -1631,7 +1672,7 @@
                                     <input type="text" disabled={wBlock} placeholder="Транслитерация (Кириллица)" value={langTranslit} onChange={e => setLangTranslit(e.target.value)} className="bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500/50 font-medium disabled:opacity-60" />
                                     <input type="text" disabled={wBlock} placeholder="Смысловой перевод" value={langTranslation} onChange={e => setLangTranslation(e.target.value)} className="bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500/50 font-medium disabled:opacity-60" />
                                 </div>
-                                <Button className="w-full" disabled={wBlock} onClick={() => { if(langPhrase.trim() && langTranslation.trim()){ const payload = langTranslit.trim() ? `${langPhrase} → [${langTranslit}] → ${langTranslation}` : `${langPhrase} → ${langTranslation}`; addLanguagePhrase(payload); setLangPhrase(''); setLangTranslit(''); setLangTranslation(''); }}}>Построить ассоциативную связь</Button>
+                                <Button className="w-full" disabled={wBlock} onClick={() => { if(langPhrase.trim() && langTranslation.trim()){ const payload = langTranslit.trim() ? `${langPhrase} → [${langTranslit}] → ${langTranslation}` : `${langPhrase} → ${langTranslation}`; addLanguagePhrase(payload); setLangPhrase(''); setLangTranslit(''); setLangTranslation(''); }}}>Сохранить фразу</Button>
                                 {state.languagePhrases && state.languagePhrases.length > 0 && (
                                     <div className="mt-2 p-2 bg-[#0a0a0a] rounded-xl border border-[#222] space-y-1.5">
                                         {state.languagePhrases.map((phrase, idx) => (
@@ -1659,7 +1700,7 @@
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Activity" className="text-amber-400" size={16}/> <span>Нагрузки</span></h2>
                             <CheckItem id="morningCharge" anchor="Утро" disabled={wBlock} checked={state.dailyTasks.morningCharge} timeLog={state.taskTimestamps.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Легкая разминка" subLabel="Суставная гимнастика для активации нервной системы." mode={state.currentMode} />
                             <CheckItem id="body" anchor="Сила" disabled={wBlock} checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label="Силовая сессия" subLabel="Тренировка в рамках выбранной сплит-программы." mode={state.currentMode} />
-                            <CheckItem id="cardio" anchor="Аэробная" disabled={wBlock} checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио сессия" subLabel="Низкоинтенсивный аэробный тренинг для оксигенации." mode={state.currentMode} />
+                            <CheckItem id="cardio" anchor="Аэробная" disabled={wBlock} checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио сессия" subLabel="Легкая ходьба для поддержания дефицита калорий." mode={state.currentMode} />
                         </div>
                         <div className={`${THEME.panel} space-y-4`}>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Battery" className="text-amber-500" size={16}/> <span>Сон и восстановление</span></h2>
@@ -1787,7 +1828,7 @@
                                                 <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
                                                     <div className="sm:text-right">
                                                         <span className="text-sm font-mono font-bold text-amber-400 block">{completed} / {total} ({pct}%)</span>
-                                                        <div className="w-28 h-1 bg-[#161616] rounded-full overflow-hidden mt-1 border border-[#262626]/20">
+                                                        <div className="w-28 h-1 bg-[#161616] rounded-full overflow-hidden mt-1 border border border-[#262626]/20">
                                                             <div className="h-full bg-amber-500" style={{ width: `${pct}%` }}></div>
                                                         </div>
                                                     </div>
@@ -2044,6 +2085,12 @@
                             return;
                         }
 
+                        // Pre-import backup creation safely
+                        try {
+                            const currentRaw = localStorage.getItem(STORAGE_KEY);
+                            if (currentRaw) localStorage.setItem(`${STORAGE_KEY}_pre_import_backup_${Date.now()}`, currentRaw);
+                        } catch(err) {}
+
                         const mergedState = migrateState(sourceData);
                         mergedState.access.mode = ACCESS_MODES.LOCKED;
                         setState(mergedState);
@@ -2293,11 +2340,11 @@
             };
 
             const cards = [
-                { title: 'Контур распорядка', text: 'Почасовой граф цепочки триггеров и якорей владельца.', icon: 'Clock' },
-                { title: 'Глубокий лог', text: 'Предыдущие периоды активности и динамика сохранения стабильности.', icon: 'History' },
-                { title: 'Параметры тела', text: 'Контроль сушки, калоража, веса и аэробных нагрузок.', icon: 'Dumbbell' },
-                { title: 'Заметки и Книга', text: 'Фиксация выводов по менеджменту, речевые модули и книга Anti-психология.', icon: 'BookOpen' },
-                { title: 'Конфигурация', text: 'Системные настройки, Obsidian коннектор, бэкапы.', icon: 'Settings' }
+                { title: 'Закрытый личный раздел', text: 'Персональные данные скрыты.', icon: 'Clock' },
+                { title: 'История', text: 'Прогресс доступен только владельцу.', icon: 'History' },
+                { title: 'Личные трекеры', text: 'Данные владельца недоступны.', icon: 'Dumbbell' },
+                { title: 'Цели и заметки', text: 'Рабочие цели скрыты.', icon: 'BookOpen' },
+                { title: 'Настройки', text: 'Изменения доступны только после входа.', icon: 'Settings' }
             ];
 
             return (
@@ -2309,7 +2356,7 @@
                             <p className="text-sm text-neutral-400 max-w-md mx-auto pt-2 leading-relaxed font-medium">{state.personalConfig.guestMessage}</p>
                         </div>
 
-                        {state.personalConfig.showGuestBreathing && (
+                        {state.personalConfig.showGuestBreathing ? (
                             <div className="space-y-3 bg-[#121212]/40 border border-[#262626]/40 p-4 rounded-2xl">
                                 <div className="px-1">
                                     <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-200">Публичный инструментарий</h2>
@@ -2319,6 +2366,10 @@
                                     <BreathingTimer type="morning" state={state} publicMode={true} />
                                     <BreathingTimer type="evening" state={state} publicMode={true} />
                                 </div>
+                            </div>
+                        ) : (
+                            <div className="text-center py-4 bg-[#121212]/30 border border-[#262626]/30 rounded-2xl text-xs text-neutral-500 font-bold uppercase">
+                                Публичные инструменты временно скрыты.
                             </div>
                         )}
 
@@ -2368,21 +2419,6 @@
 
             const isCompact = state.settings.compactMode;
 
-            const view = useMemo(() => {
-                switch (state.currentTab) {
-                    case 'dashboard': return <DashboardView state={state} update={update} toggleTask={toggleTask} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} dayAnalytics={dayAnalytics} />;
-                    case 'schedule': return <ScheduleView state={state} update={update} />;
-                    case 'learning': return <LearningView state={state} saveDailyNote={saveDailyNote} addLanguagePhrase={addLanguagePhrase} />;
-                    case 'body': return <BodyView state={state} update={update} toggleTask={toggleTask} />;
-                    case 'content': return <ContentView state={state} update={update} saveDailyNote={saveDailyNote} />;
-                    case 'rituals': return <RitualsView state={state} toggleTask={toggleTask} update={update} />;
-                    case 'history': return <HistoryView state={state} />;
-                    case 'progress': return <ProgressView state={state} />;
-                    case 'tools': return <ToolsExportView state={state} setState={setState} showToast={showToast} update={update} />;
-                    default: return <DashboardView state={state} update={update} toggleTask={toggleTask} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} dayAnalytics={dayAnalytics} />;
-                }
-            }, [state.currentTab, state, update, toggleTask, setGlobalFocusId, globalFocusId, dayAnalytics]);
-
             const saveDailyNote = useCallback((text, source) => {
                 const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
                 update('notes', { savedDaily: [...(state.notes.savedDaily || []), `[${time}] [${source}] ${text}`] }, { silent: true });
@@ -2393,6 +2429,27 @@
                 update('languagePhrases', [...(state.languagePhrases || []), p], { silent: true });
                 showToast("Структура сохранена.");
             }, [state.languagePhrases, update, showToast]);
+
+            const setTab = useCallback((tabId) => {
+                if (VALID_TABS.includes(tabId)) {
+                    update('currentTab', tabId, { silent: true });
+                }
+            }, [update]);
+
+            const view = useMemo(() => {
+                switch (state.currentTab) {
+                    case 'dashboard': return <DashboardView state={state} update={update} toggleTask={toggleTask} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} dayAnalytics={dayAnalytics} />;
+                    case 'schedule': return <ScheduleView state={state} />;
+                    case 'learning': return <LearningView state={state} saveDailyNote={saveDailyNote} addLanguagePhrase={addLanguagePhrase} />;
+                    case 'body': return <BodyView state={state} update={update} toggleTask={toggleTask} />;
+                    case 'content': return <ContentView state={state} update={update} saveDailyNote={saveDailyNote} />;
+                    case 'rituals': return <RitualsView state={state} toggleTask={toggleTask} update={update} />;
+                    case 'history': return <HistoryView state={state} />;
+                    case 'progress': return <ProgressView state={state} />;
+                    case 'tools': return <ToolsExportView state={state} setState={setState} showToast={showToast} update={update} />;
+                    default: return <DashboardView state={state} update={update} toggleTask={toggleTask} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} dayAnalytics={dayAnalytics} />;
+                }
+            }, [state.currentTab, state, update, toggleTask, setGlobalFocusId, globalFocusId, dayAnalytics, saveDailyNote, addLanguagePhrase]);
 
             return (
                 <div className="min-h-screen bg-[#0a0a0a] text-neutral-200 flex flex-col lg:flex-row overflow-x-hidden antialiased relative w-full">
@@ -2437,7 +2494,7 @@
                                 return (
                                     <button 
                                         type="button"
-                                        key={tab.id} onClick={() => update('currentTab', tab.id, { silent: true })}
+                                        key={tab.id} onClick={() => setTab(tab.id)}
                                         aria-label={`Открыть раздел ${tab.label}`}
                                         aria-current={active ? 'page' : undefined}
                                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all font-bold text-xs uppercase tracking-wider min-h-[38px] ${active ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 font-black' : 'text-neutral-400 hover:text-neutral-200'}`}
@@ -2463,7 +2520,7 @@
                             return (
                                 <button 
                                     type="button"
-                                    key={tab.id} onClick={() => update('currentTab', tab.id, { silent: true })}
+                                    key={tab.id} onClick={() => setTab(tab.id)}
                                     aria-label={`Открыть раздел ${tab.label}`}
                                     aria-current={active ? 'page' : undefined}
                                     className={`flex-1 flex flex-col items-center justify-center min-w-[64px] min-h-[44px] py-0.5 gap-0.5 touch-manipulation ${active ? 'text-amber-400 font-black' : 'text-neutral-400'}`}
@@ -2507,6 +2564,16 @@
                     safeStorage.set(state);
                 }, 250);
                 return () => { if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current); };
+            }, [state]);
+
+            useEffect(() => {
+                const handleUnload = () => {
+                    if (state.access?.mode === ACCESS_MODES.OWNER) {
+                        safeStorage.set(state);
+                    }
+                };
+                window.addEventListener('beforeunload', handleUnload);
+                return () => window.removeEventListener('beforeunload', handleUnload);
             }, [state]);
 
             useEffect(() => {
@@ -2620,7 +2687,7 @@
                         ...prev,
                         access: { ...prev.access, guestClicks: (prev.access?.guestClicks || 0) + 1 }
                     }));
-                    showToast('Терминал заблокирован для гостевых изменений.');
+                    showToast('Гостевой режим: изменения не сохраняются.');
                     return;
                 }
 
@@ -2649,7 +2716,7 @@
                         AudioEngine.playSuccess(prev.settings.soundEnabled);
                         
                         toastPayload = {
-                            msg: isCore ? "Ключевой триггер зафиксирован." : "Алгоритм выполнен.",
+                            msg: "Готово.",
                             options: { type: "success", xp: `+${finalReward} XP` }
                         };
                     } else {
@@ -2658,7 +2725,7 @@
                         delete updatedTimestamps[taskId];
                         
                         toastPayload = {
-                            msg: "Метка удалена.",
+                            msg: "Снято.",
                             options: { type: "warning", xp: `-${finalReward} XP` }
                         };
                     }
@@ -2741,19 +2808,38 @@
         class ErrorBoundary extends React.Component {
             constructor(props) {
                 super(props);
-                this.state = { hasError: false };
+                this.state = { hasError: false, errorMessage: '' };
             }
-            static getDerivedStateFromError() { return { hasError: true }; }
+            static getDerivedStateFromError(error) { 
+                return { hasError: true, errorMessage: error?.message || 'Неизвестная ошибка' }; 
+            }
             componentDidCatch(error, errorInfo) {
                 console.error("Критический сбой UI:", error, errorInfo);
             }
+            handleEmergencyReset = () => {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (raw) {
+                        localStorage.setItem(`${STORAGE_KEY}_emergency_backup_${Date.now()}`, raw);
+                    }
+                    localStorage.removeItem(STORAGE_KEY);
+                    window.location.reload();
+                } catch (e) {
+                    console.error('Emergency reset failed:', e);
+                    window.location.reload();
+                }
+            };
             render() {
                 if (this.state.hasError) {
                     return (
-                        <div style={{ background: '#0a0a0a', color: '#ef4444', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifycontent: 'center', padding: '24px', fontFamily: 'monospace', textAlign: 'center' }}>
-                            <h1 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '12px' }}>Ошибка интерфейса</h1>
-                            <p style={{ color: '#a3a3a3', fontSize: '13px', marginBottom: '20px', maxWidth: '400px' }}>Произошла непредвиденная ошибка отрисовки. Локальные данные защищены.</p>
-                            <button onClick={() => { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }} style={{ background: '#f59e0b', color: '#000', padding: '12px 24px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', textTransform: 'uppercase' }}> Очистить кэш хранилища </button>
+                        <div style={{ background: '#0a0a0a', color: '#ef4444', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'system-ui, sans-serif', textAlign: 'center' }}>
+                            <h1 style={{ fontSize: '22px', fontWeight: '800', textTransform: 'uppercase', marginBottom: '12px' }}>Ошибка интерфейса</h1>
+                            <p style={{ color: '#a3a3a3', fontSize: '14px', maxWidth: '520px', lineHeight: 1.6, marginBottom: '20px' }}>Интерфейс временно упал. Локальные данные не удалены. Сначала попробуй просто перезагрузить интерфейс.</p>
+                            <button onClick={() => window.location.reload()} style={{ background: '#f59e0b', color: '#000', padding: '12px 24px', border: 'none', borderRadius: '10px', fontWeight: '800', cursor: 'pointer', fontSize: '13px', textTransform: 'uppercase', marginBottom: '12px' }}> Перезагрузить интерфейс </button>
+                            <button onClick={this.handleEmergencyReset} style={{ background: 'transparent', color: '#a3a3a3', padding: '8px 12px', border: '1px solid #333', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', fontSize: '11px' }}> Аварийный сброс с сохранением backup </button>
+                            {this.state.errorMessage && (
+                                <p style={{ marginTop: '16px', color: '#525252', fontSize: '11px', maxWidth: '520px', wordBreak: 'break-word' }}>Техническая причина: {this.state.errorMessage}</p>
+                            )}
                         </div>
                     );
                 }
