@@ -19,6 +19,7 @@
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
             line-height: 1.6;
+            scroll-behavior: smooth;
         }
         
         h1, h2, h3, h4 {
@@ -75,7 +76,7 @@
                 animation-duration: 0s !important;
                 animation-iteration-count: 1 !important;
                 transition-duration: 0s !important;
-                scrollbar-behavior: auto !important;
+                scroll-behavior: auto !important;
             }
             .premium-elevation:hover {
                 transform: none !important;
@@ -106,10 +107,18 @@
         const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
         const STORAGE_KEY = 'markov_os_v15_hyper_elite_final_v2';
-        const SCHEMA_VERSION = '1.2.0';
+        const SCHEMA_VERSION = '1.3.0';
         
         const VALID_TABS = ['dashboard', 'schedule', 'learning', 'body', 'content', 'rituals', 'history', 'progress', 'tools'];
         const VALID_MODES = ['MAX', 'NORM', 'MIN', 'RECOVERY', 'SATURDAY', 'SUNDAY'];
+
+        const ACCESS_MODES = {
+            LOCKED: 'locked',
+            OWNER: 'owner',
+            GUEST: 'guest'
+        };
+
+        const DEFAULT_OWNER_PIN_HASH = 'd3e1af605cc84c4bf7da5bb5981293230d442490f575030a9d4359355c5d5f8f';
 
         const STOIC_QUOTES = [
             { text: "У тебя есть власть над твоим разумом, а не над внешними событиями. Осознай это, и ты обретешь силу.", author: "Марк Аврелий" },
@@ -122,6 +131,31 @@
             { text: "Препятствие на пути становится самим путем. Любое затруднение — это топливо для твоей дисциплины.", author: "Марк Аврелий" },
             { text: "Бедность — это не нехватка имущества, это ненасытность души. Цени базовую стабильность.", author: "Сенека" }
         ];
+
+        const TASK_LABELS = {
+            waterAm: 'Вода после сна',
+            morningHygiene: 'Утренний уход',
+            morningCharge: 'Легкая зарядка',
+            breakfast: 'Сбалансированный завтрак',
+            spanish: 'Испанский язык',
+            chinese: 'Китайский язык',
+            mainTask: 'Главная задача',
+            pm: 'Project Management',
+            english: 'Английский язык',
+            workStart: 'Старт смены в клубе',
+            body: 'Силовая тренировка',
+            workMeal: 'Прием пищи на работе',
+            homeArrival: 'Возвращение домой',
+            cardio: 'Кардио сессия',
+            dinner: 'Легкий ужин',
+            plannedProcrastination: 'Разрешенный отдых',
+            eveningHygiene: 'Вечерний уход за зубами',
+            faceCare: 'Уход за лицом',
+            nightSupplements: 'Ночные добавки',
+            sleep: 'Качественный сон',
+            creativity: 'Музыка и Творчество',
+            weeklyPlanning: 'Планирование недели'
+        };
 
         const getCoreTasksForMode = (mode, mainGoalActive = true) => {
             const base = [
@@ -178,7 +212,7 @@
             { time: '11:45', anchor: 'После завтрака', title: 'Главная задача дня', taskIds: ['mainTask'], note: 'Фокусированная работа над вашим текущим ключевым проектом.' },
             { time: '12:45', anchor: 'После главной задачи', title: 'Project Management', taskIds: ['pm'], note: 'До 60 минут обучения и структурирования рабочих векторов.' },
             { time: '13:45', anchor: 'После PM', title: 'Английский язык', taskIds: ['english'], note: 'До 30 минут речевой практики и масштабирования.' },
-            { time: '14:20', anchor: 'После учебы', title: 'Еда и сборы перед работой', taskIds: ['workMeal'], note: 'Спокойный обед и буферное время для подготовки.' },
+            { time: '14:20', anchor: 'После учебы', title: 'Еда и сборы перед работой', taskIds: [], note: 'Спокойный обед и буферное время для подготовки.' },
             { time: '15:20', anchor: 'Перед работой', title: 'Дорога в клуб', taskIds: [], note: 'Переключение мыслей на рабочий лад.' },
             { time: '16:00', anchor: 'Начало работы', title: 'Старт рабочей смены', taskIds: ['workStart'], note: 'Включение в тренировочный процесс и ведение подопечных.' },
             { time: 'В процессе', anchor: 'Перерыв в работе', title: 'Силовая тренировка (1 час)', taskIds: ['body'], note: 'Час интенсивной работы над собственной формой прямо в клубе «Стимул».' },
@@ -191,6 +225,17 @@
             { time: '00:30', anchor: 'Перед сном', title: 'Ночные добавки', taskIds: ['nightSupplements'], note: 'Прием магния и 5-HTP по вашему индивидуальному плану.' },
             { time: '01:00', anchor: 'Конец дня', title: 'Качественный сон', taskIds: ['sleep'], note: 'Главная задача ночи — вовремя лечь спать для полного восстановления.' }
         ];
+
+        const hashText = async (text) => {
+            if (!window.crypto || !window.crypto.subtle) {
+                return btoa(unescape(encodeURIComponent(text)));
+            }
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        };
 
         const AudioEngine = {
             ctx: null,
@@ -413,15 +458,51 @@
             languagePhrases: [],
             stats: { xp: 0, level: 1, returnRate: 100, daysLogged: 1, categories: { body: 15, pm: 15, english: 15, content: 15, spirit: 15 } },
             contentLadder: -1,
-            lastLoginDate: new Date().toDateString(),
+            lastLoginDate: new Date().toISOString().slice(0, 10),
             streakCounter: 0,
             bookProgress: { chapter: 1, totalPages: 15 },
             history: {},
             settings: {
                 evidenceMode: true, soundEnabled: true, hapticsEnabled: true, animationsEnabled: true,
-                compactMode: false, confirmBeforeReset: true, autoArchiveDays: 90
+                compactMode: false, confirmBeforeReset: true, autoArchiveDays: 90, autoLockMinutes: 30
+            },
+            access: {
+                mode: ACCESS_MODES.LOCKED,
+                ownerPinHash: DEFAULT_OWNER_PIN_HASH,
+                ownerPinSet: true,
+                guestClicks: 0,
+                lastOwnerLoginAt: '',
+                sessionStartedAt: '',
+                lastActivityAt: ''
             }
         };
+
+        const createInitialState = () => ({
+            ...INITIAL_STATE,
+            energyMetrics: { ...INITIAL_STATE.energyMetrics },
+            dailyTasks: { ...INITIAL_STATE.dailyTasks },
+            mainGoal: { ...INITIAL_STATE.mainGoal },
+            cuttingTracker: { ...INITIAL_STATE.cuttingTracker },
+            nutrition: {
+                ...INITIAL_STATE.nutrition,
+                meals: { ...INITIAL_STATE.nutrition.meals }
+            },
+            supplementPlan: {
+                evening: [...INITIAL_STATE.supplementPlan.evening]
+            },
+            access: { ...INITIAL_STATE.access },
+            taskTimestamps: {},
+            notes: { ...INITIAL_STATE.notes, savedDaily: [] },
+            sunoIdeas: [],
+            languagePhrases: [],
+            stats: {
+                ...INITIAL_STATE.stats,
+                categories: { ...INITIAL_STATE.stats.categories }
+            },
+            bookProgress: { ...INITIAL_STATE.bookProgress },
+            history: {},
+            settings: { ...INITIAL_STATE.settings }
+        });
 
         const clampNumber = (value, fallback, min, max) => {
             const number = Number(value);
@@ -433,10 +514,56 @@
             return Math.floor(clampNumber(value, fallback, min, max));
         };
 
+        const isOwner = (state) => state.access?.mode === ACCESS_MODES.OWNER;
+        const isGuest = (state) => state.access?.mode === ACCESS_MODES.GUEST;
+        const isLocked = (state) => state.access?.mode === ACCESS_MODES.LOCKED;
+        const canWrite = (state) => isOwner(state);
+
+        const getTodayKey = () => new Date().toISOString().slice(0, 10);
+        
+        const safeDateKey = (value) => {
+            if (!value) return getTodayKey();
+            const d = new Date(value);
+            if (!Number.isFinite(d.getTime())) return getTodayKey();
+            return d.toISOString().slice(0, 10);
+        };
+
+        const buildDayArchive = (state) => {
+            const allTasks = Object.keys(state.dailyTasks || {});
+            const completed = Object.values(state.dailyTasks || {}).filter(Boolean).length;
+            const total = allTasks.length;
+            const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            const coreTasks = getCoreTasksForMode(state.currentMode, state.mainGoal?.active);
+            const coreCompleted = coreTasks.filter(id => state.dailyTasks[id]).length;
+            const coreTotal = coreTasks.length;
+            const corePercent = coreTotal > 0 ? Math.round((coreCompleted / coreTotal) * 100) : 0;
+
+            return {
+                date: state.lastLoginDate || getTodayKey(),
+                archivedAt: new Date().toISOString(),
+                dailyTasks: { ...state.dailyTasks },
+                taskTimestamps: { ...state.taskTimestamps },
+                energyMetrics: { ...state.energyMetrics },
+                cuttingTracker: { ...state.cuttingTracker },
+                nutrition: { ...state.nutrition },
+                mainGoal: { ...state.mainGoal },
+                currentMode: state.currentMode,
+                statsSnapshot: { ...state.stats },
+                completionPercent: percent,
+                coreCompletionPercent: corePercent,
+                completed,
+                total,
+                coreCompleted,
+                coreTotal,
+                xpEarned: state.stats?.xp || 0
+            };
+        };
+
         function migrateState(rawState) {
-            if (!rawState) return { ...INITIAL_STATE };
+            if (!rawState) return createInitialState();
             
-            const state = { ...INITIAL_STATE };
+            const state = createInitialState();
             
             state.currentTab = VALID_TABS.includes(rawState.currentTab) ? rawState.currentTab : INITIAL_STATE.currentTab;
             state.currentMode = VALID_MODES.includes(rawState.currentMode) ? rawState.currentMode : INITIAL_STATE.currentMode;
@@ -449,20 +576,20 @@
             if (rawState.sunoIdeas) state.sunoIdeas = Array.isArray(rawState.sunoIdeas) ? rawState.sunoIdeas : [];
             if (rawState.languagePhrases) state.languagePhrases = Array.isArray(rawState.languagePhrases) ? rawState.languagePhrases : [];
 
-            state.dailyTasks = { ...INITIAL_STATE.dailyTasks, ...(rawState.dailyTasks || {}) };
-            state.mainGoal = { ...INITIAL_STATE.mainGoal, ...(rawState.mainGoal || {}) };
+            state.dailyTasks = { ...state.dailyTasks, ...(rawState.dailyTasks || {}) };
+            state.mainGoal = { ...state.mainGoal, ...(rawState.mainGoal || {}) };
             state.mainGoal.timeLimitMinutes = clampInteger(state.mainGoal.timeLimitMinutes, 60, 15, 60);
             state.mainGoal.active = Boolean(state.mainGoal.active);
 
-            state.cuttingTracker = { ...INITIAL_STATE.cuttingTracker, ...(rawState.cuttingTracker || {}) };
-            state.nutrition = { ...INITIAL_STATE.nutrition, ...(rawState.nutrition || {}) };
-            state.supplementPlan = { ...INITIAL_STATE.supplementPlan, ...(rawState.supplementPlan || {}) };
+            state.cuttingTracker = { ...state.cuttingTracker, ...(rawState.cuttingTracker || {}) };
+            state.nutrition = { ...state.nutrition, ...(rawState.nutrition || {}) };
+            state.supplementPlan = { ...state.supplementPlan, ...(rawState.supplementPlan || {}) };
 
             state.taskTimestamps = { ...(rawState.taskTimestamps || {}) };
-            state.notes = { ...INITIAL_STATE.notes, ...(rawState.notes || {}) };
+            state.notes = { ...state.notes, ...(rawState.notes || {}) };
             state.history = { ...(rawState.history || {}) };
             
-            state.settings = { ...INITIAL_STATE.settings, ...(rawState.settings || {}) };
+            state.settings = { ...state.settings, ...(rawState.settings || {}) };
             state.settings.evidenceMode = Boolean(state.settings.evidenceMode);
             state.settings.soundEnabled = Boolean(state.settings.soundEnabled);
             state.settings.hapticsEnabled = Boolean(state.settings.hapticsEnabled);
@@ -470,6 +597,18 @@
             state.settings.compactMode = Boolean(state.settings.compactMode);
             state.settings.confirmBeforeReset = Boolean(state.settings.confirmBeforeReset);
             state.settings.autoArchiveDays = clampInteger(state.settings.autoArchiveDays, 90, 7, 365);
+            state.settings.autoLockMinutes = clampInteger(state.settings.autoLockMinutes, 30, 5, 240);
+
+            state.access = { ...state.access, ...(rawState.access || {}) };
+            if (!Object.values(ACCESS_MODES).includes(state.access.mode)) {
+                state.access.mode = ACCESS_MODES.LOCKED;
+            }
+            state.access.ownerPinSet = true;
+            state.access.ownerPinHash = String(state.access.ownerPinHash || DEFAULT_OWNER_PIN_HASH);
+            state.access.guestClicks = clampInteger(state.access.guestClicks, 0, 0, 1000000);
+            state.access.lastOwnerLoginAt = String(state.access.lastOwnerLoginAt || '');
+            state.access.sessionStartedAt = String(state.access.sessionStartedAt || '');
+            state.access.lastActivityAt = String(state.access.lastActivityAt || '');
 
             const rMetrics = rawState.energyMetrics || {};
             state.energyMetrics = {
@@ -492,11 +631,11 @@
                 level: Math.floor(Math.sqrt(xp / 100)) + 1,
                 returnRate: clampNumber(rStats.returnRate, 100, 20, 100),
                 daysLogged: clampInteger(rStats.daysLogged, 1, 1, 100000),
-                categories: { ...INITIAL_STATE.stats.categories, ...(rStats.categories || {}) }
+                categories: { ...state.stats.categories, ...(rStats.categories || {}) }
             };
             
             Object.keys(state.stats.categories).forEach(key => {
-                state.stats.categories[key] = clampNumber(state.stats.categories[key], INITIAL_STATE.stats.categories[key] || 0, 0, 100);
+                state.stats.categories[key] = clampNumber(state.stats.categories[key], state.stats.categories[key] || 0, 0, 100);
             });
             
             return state;
@@ -507,16 +646,9 @@
                 try {
                     const saved = localStorage.getItem(STORAGE_KEY);
                     if (!saved) return migrateState(null);
-                    const parsed = JSON.parse(saved);
-                    return migrateState(parsed);
+                    return migrateState(JSON.parse(saved));
                 } catch (e) {
-                    try {
-                        const corrupted = localStorage.getItem(STORAGE_KEY);
-                        if (corrupted) {
-                            localStorage.setItem(`${STORAGE_KEY}_corrupted_${Date.now()}`, corrupted);
-                        }
-                    } catch(inner) {}
-                    console.error("Storage corrupted. Fallback state loaded.", e);
+                    console.error("Storage corrupted. Fallback loaded.", e);
                     return migrateState(null);
                 }
             },
@@ -524,9 +656,156 @@
                 try {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
                 } catch (e) {
-                    console.error("Ошибка синхронизации с LocalStorage:", e);
+                    console.error("Ошибка синхронизации LocalStorage:", e);
                 }
             }
+        };
+
+        const useCurrentDateTime = () => {
+            const [now, setNow] = useState(() => new Date());
+            useEffect(() => {
+                const id = setInterval(() => setNow(new Date()), 1000);
+                return () => clearInterval(id);
+            }, []);
+            return now;
+        };
+
+        const formatDayName = (date) => date.toLocaleDateString('ru-RU', { weekday: 'long' });
+        const formatFullDate = (date) => date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+        const formatTime = (date) => date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+        const LockScreen = ({ state, setState, showToast }) => {
+            const [pin, setPin] = useState('');
+            const [error, setError] = useState('');
+
+            const handleOwnerLogin = async (e) => {
+                e.preventDefault();
+                if (!pin) return;
+                const hash = await hashText(pin);
+                if (hash === state.access.ownerPinHash) {
+                    setState(prev => ({
+                        ...prev,
+                        access: {
+                            ...prev.access,
+                            mode: ACCESS_MODES.OWNER,
+                            lastOwnerLoginAt: new Date().toISOString(),
+                            sessionStartedAt: new Date().toISOString(),
+                            lastActivityAt: new Date().toISOString()
+                        }
+                    }));
+                    showToast('Вход владельца выполнен.');
+                } else {
+                    setError('Неверный PIN-код доступа.');
+                    setPin('');
+                }
+            };
+
+            const handleGuestLogin = () => {
+                setState(prev => ({
+                    ...prev,
+                    access: {
+                        ...prev.access,
+                        mode: ACCESS_MODES.GUEST,
+                        sessionStartedAt: new Date().toISOString(),
+                        lastActivityAt: new Date().toISOString()
+                    }
+                }));
+                showToast('Включен гостевой режим.');
+            };
+
+            return (
+                <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 antialiased">
+                    <div className="w-full max-w-sm bg-[#121212] border border-[#262626] rounded-[2rem] p-6 md:p-8 shadow-2xl text-center space-y-6 animate-in zoom-in-95">
+                        <div className="space-y-1">
+                            <h1 className="text-3xl font-black tracking-wider text-white uppercase">Markov<span className="text-amber-500">OS</span></h1>
+                            <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">Личная система дня Павла</p>
+                        </div>
+
+                        <form onSubmit={handleOwnerLogin} className="space-y-3 pt-2">
+                            <div className="text-left space-y-1">
+                                <label className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider px-1">Аутентификация Суверена</label>
+                                <input 
+                                    type="password" 
+                                    inputMode="numeric" 
+                                    autoComplete="current-password"
+                                    maxLength={12}
+                                    placeholder="Введите секретный PIN" 
+                                    value={pin}
+                                    onChange={e => { setError(''); setPin(e.target.value); }}
+                                    className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3.5 text-center text-xl font-mono text-amber-400 focus:outline-none focus:border-amber-500/50 tracking-widest font-bold"
+                                />
+                            </div>
+                            {error && <p className="text-xs font-bold text-red-400 uppercase tracking-wide">{error}</p>}
+                            <button type="submit" className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-600 text-neutral-950 font-black uppercase text-xs tracking-wider shadow-lg hover:brightness-105 active:scale-[0.99] transition-all">
+                                Войти как владелец
+                            </button>
+                        </form>
+
+                        <div className="relative flex py-2 items-center text-xs text-neutral-600 font-bold uppercase tracking-widest">
+                            <div className="flex-grow border-t border-[#262626]"></div>
+                            <span className="flex-shrink mx-3">или</span>
+                            <div className="flex-grow border-t border-[#262626]"></div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <button type="button" onClick={handleGuestLogin} className="w-full py-3 rounded-xl bg-[#1c1c1c] border border-[#333] text-neutral-200 font-bold uppercase text-xs tracking-wider hover:bg-[#262626] active:scale-[0.99] transition-all">
+                                Я только посмотреть
+                            </button>
+                            <p className="text-[10px] text-neutral-500 font-medium leading-normal max-w-[250px] mx-auto">
+                                Гостевой режим предоставляет доступ к чтению, но блокирует изменение параметров.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AccessBanner = ({ state, setState }) => {
+            const mode = state.access?.mode;
+            if (mode === ACCESS_MODES.OWNER) {
+                return (
+                    <div className="mb-4 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3 animate-in fade-in">
+                        <span className="text-xs text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Модуль: Администратор (Павел)
+                        </span>
+                        <button type="button" onClick={() => setState(prev => ({ ...prev, access: { ...prev.access, mode: ACCESS_MODES.LOCKED } }))} className="text-[10px] px-3 py-1.5 rounded-lg bg-[#1c1c1c] border border-[#333] hover:border-amber-500/20 text-neutral-300 font-bold uppercase transition-colors">
+                            Заблокировать
+                        </button>
+                    </div>
+                );
+            }
+            if (mode === ACCESS_MODES.GUEST) {
+                return (
+                    <div className="mb-4 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-between gap-3 animate-in fade-in">
+                        <span className="text-xs text-blue-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-blue-400"></span> Режим наблюдателя: изменения не сохраняются
+                        </span>
+                        <button type="button" onClick={() => setState(prev => ({ ...prev, access: { ...prev.access, mode: ACCESS_MODES.LOCKED } }))} className="text-[10px] px-3 py-1.5 rounded-lg bg-blue-500 text-neutral-950 font-black uppercase transition-transform active:scale-95">
+                            Войти как владелец
+                        </button>
+                    </div>
+                );
+            }
+            return null;
+        };
+
+        const TodayHeader = ({ state, dayAnalytics }) => {
+            const now = useCurrentDateTime();
+            return (
+                <div className="mb-5 space-y-2">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-baseline gap-1">
+                        <div>
+                            <h1 className="text-2xl font-black text-white uppercase tracking-tight flex items-baseline gap-2">
+                                <span>Сегодня, {formatDayName(now)}</span>
+                                <span className="text-xs font-mono text-neutral-500 font-bold normal-case">({formatFullDate(now)})</span>
+                            </h1>
+                        </div>
+                        <div className="text-3xl font-mono font-black text-amber-400 select-none tracking-normal">
+                            {formatTime(now)}
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
         class ErrorBoundary extends React.Component {
@@ -541,10 +820,10 @@
             render() {
                 if (this.state.hasError) {
                     return (
-                        <div style={{ background: '#0a0a0a', color: '#ef4444', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'monospace' }}>
+                        <div style={{ background: '#0a0a0a', color: '#ef4444', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifycontent: 'center', padding: '24px', fontFamily: 'monospace' }}>
                             <h1 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '12px' }}>Критический сбой ядра</h1>
-                            <button onClick={() => window.location.reload()} style={{ background: '#f59e0b', color: '#000', padding: '12px 24px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
-                                ПЕРЕЗАГРУЗИТЬ ИНТЕРФЕЙС
+                            <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ background: '#f59e0b', color: '#000', padding: '12px 24px', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                                СБРОСИТЬ СТОРИДЖ И ОБНОВИТЬ
                             </button>
                         </div>
                     );
@@ -569,7 +848,7 @@
             }, []);
 
             useEffect(() => {
-                if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+                if (state.access?.mode !== ACCESS_MODES.OWNER) return;
                 saveDebounceRef.current = setTimeout(() => {
                     safeStorage.set(state);
                 }, 250);
@@ -577,24 +856,66 @@
             }, [state]);
 
             useEffect(() => {
-                const today = new Date().toDateString();
-                if (state.lastLoginDate !== today) {
+                const handleUnload = () => {
+                    if (state.access?.mode === ACCESS_MODES.OWNER) {
+                        safeStorage.set(state);
+                    }
+                };
+                window.addEventListener('beforeunload', handleUnload);
+                return () => window.removeEventListener('beforeunload', handleUnload);
+            }, [state]);
+
+            useEffect(() => {
+                if (state.access?.mode !== ACCESS_MODES.OWNER) return;
+
+                const markActivity = () => {
                     setState(prev => {
-                        const yesterdayStr = prev.lastLoginDate || new Date(Date.now() - 86400000).toDateString();
+                        if (prev.access?.mode !== ACCESS_MODES.OWNER) return prev;
+                        return {
+                            ...prev,
+                            access: { ...prev.access, lastActivityAt: new Date().toISOString() }
+                        };
+                    });
+                };
+
+                window.addEventListener('click', markActivity);
+                window.addEventListener('keydown', markActivity);
+                window.addEventListener('touchstart', markActivity);
+
+                const interval = setInterval(() => {
+                    setState(prev => {
+                        if (prev.access?.mode !== ACCESS_MODES.OWNER) return prev;
+                        const last = new Date(prev.access?.lastActivityAt || prev.access?.sessionStartedAt || Date.now()).getTime();
+                        const diff = Date.now() - last;
+                        const limit = (prev.settings?.autoLockMinutes || 30) * 60 * 1000;
+
+                        if (diff > limit) {
+                            return {
+                                ...prev,
+                                access: { ...prev.access, mode: ACCESS_MODES.LOCKED }
+                            };
+                        }
+                        return prev;
+                    });
+                }, 30000);
+
+                return () => {
+                    window.removeEventListener('click', markActivity);
+                    window.removeEventListener('keydown', markActivity);
+                    window.removeEventListener('touchstart', markActivity);
+                    clearInterval(interval);
+                };
+            }, [state.access?.mode]);
+
+            useEffect(() => {
+                const today = new Date().toISOString().slice(0, 10);
+                if (state.lastLoginDate !== today && state.access?.mode === ACCESS_MODES.OWNER) {
+                    setState(prev => {
+                        const yesterdayStr = prev.lastLoginDate || new Date(Date.now() - 86400000).toISOString().slice(0, 10);
                         const updatedHistory = { ...prev.history };
                         
-                        updatedHistory[yesterdayStr] = {
-                            date: yesterdayStr,
-                            dailyTasks: { ...prev.dailyTasks },
-                            taskTimestamps: { ...prev.taskTimestamps },
-                            energyMetrics: { ...prev.energyMetrics },
-                            cuttingTracker: { ...prev.cuttingTracker },
-                            nutrition: { ...prev.nutrition },
-                            mainGoal: { ...prev.mainGoal },
-                            currentMode: prev.currentMode,
-                            statsSnapshot: { ...prev.stats },
-                            xpEarned: prev.stats.xp
-                        };
+                        const archiveKey = safeDateKey(yesterdayStr);
+                        updatedHistory[archiveKey] = buildDayArchive(prev);
 
                         const coreTasks = getCoreTasksForMode(prev.currentMode, prev.mainGoal?.active);
                         const coreCompletedAll = coreTasks.every(k => prev.dailyTasks[k]);
@@ -618,20 +939,47 @@
                             }
                         };
                     });
-                    showToast("Начался новый день. Алгоритмы сброшены. ⚡");
+                    showToast("Начался новый день.");
                 }
-            }, [state.lastLoginDate, showToast]);
+            }, [state.lastLoginDate, state.access?.mode, showToast]);
 
             const update = useCallback((key, value) => {
                 setState(prev => {
+                    const guestAllowedKeys = ['currentTab'];
+                    if (!canWrite(prev) && !guestAllowedKeys.includes(key)) {
+                        return {
+                            ...prev,
+                            access: { ...prev.access, guestClicks: (prev.access?.guestClicks || 0) + 1 }
+                        };
+                    }
+
                     if (typeof value === 'object' && !Array.isArray(value) && value !== null && prev[key]) {
                         return { ...prev, [key]: { ...prev[key], ...value } };
                     }
                     return { ...prev, [key]: value };
                 });
-            }, []);
+                
+                setState(current => {
+                    if (!canWrite(current) && key !== 'currentTab') {
+                        showToast('Гостевой режим: изменения не сохраняются.');
+                    }
+                    return current;
+                });
+            }, [showToast]);
 
             const toggleTask = useCallback((taskId, category, xpReward = 10, forceState = null) => {
+                let checkWrite = false;
+                setState(p => { if (canWrite(p)) checkWrite = true; return p; });
+
+                if (!checkWrite) {
+                    setState(prev => ({
+                        ...prev,
+                        access: { ...prev.access, guestClicks: (prev.access?.guestClicks || 0) + 1 }
+                    }));
+                    showToast('Гостевой режим: клик не засчитан.');
+                    return;
+                }
+
                 setState(prev => {
                     const isDone = forceState !== null ? forceState : !prev.dailyTasks[taskId];
                     if (forceState !== null && prev.dailyTasks[taskId] === forceState) return prev;
@@ -673,7 +1021,7 @@
                         }
                     };
                 });
-                showToast("Действие синхронизировано.");
+                showToast('Готово, сохранено.');
             }, [showToast]);
 
             return { state, setState, update, toggleTask, toast, showToast, globalFocusId, setGlobalFocusId };
@@ -699,23 +1047,23 @@
         });
         Button.displayName = 'Button';
 
-        const NumericInput = React.memo(({ label, value, onChange, min=0, max=10, step=1, hint, color="accent" }) => {
+        const NumericInput = React.memo(({ label, value, onChange, min=0, max=10, step=1, hint, color="accent", readOnly=false }) => {
             return (
                 <div className="flex flex-col gap-1 w-full">
                     <span className={`${THEME.textMuted} text-xs uppercase tracking-wider px-1`}>
                         {label} {hint && <span className="opacity-50 font-normal normal-case">({hint})</span>}
                     </span>
                     <div className="flex items-center bg-[#141414] border border-[#262626] p-1 rounded-xl w-full">
-                        <button type="button" aria-label="Уменьшить" onClick={() => onChange(Math.max(min, Number(value) - step))} className="p-3 rounded-lg bg-[#1c1c1c] text-neutral-300 hover:text-amber-400 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"><IconBase iconName="Minus" size={14}/></button>
+                        <button type="button" aria-label="Уменьшить" disabled={readOnly} onClick={() => onChange(Math.max(min, Number(value) - step))} className="p-3 rounded-lg bg-[#1c1c1c] text-neutral-300 hover:text-amber-400 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center disabled:opacity-30"><IconBase iconName="Minus" size={14}/></button>
                         <input type="number" readOnly value={value} className={`flex-1 bg-transparent text-center text-lg font-mono font-bold ${color === 'red' ? 'text-red-400' : 'text-amber-400'}`} />
-                        <button type="button" aria-label="Увеличить" onClick={() => onChange(Math.min(max, Number(value) + step))} className="p-3 rounded-lg bg-[#1c1c1c] text-neutral-300 hover:text-amber-400 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"><IconBase iconName="Plus" size={14}/></button>
+                        <button type="button" aria-label="Увеличить" disabled={readOnly} onClick={() => onChange(Math.min(max, Number(value) + step))} className="p-3 rounded-lg bg-[#1c1c1c] text-neutral-300 hover:text-amber-400 active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center disabled:opacity-30"><IconBase iconName="Plus" size={14}/></button>
                     </div>
                 </div>
             );
         });
         NumericInput.displayName = 'NumericInput';
 
-        const CheckItem = React.memo(({ id, checked, onChange, label, subLabel, anchor, timeLog, mode = 'NORM' }) => {
+        const CheckItem = React.memo(({ id, checked, onChange, label, subLabel, anchor, timeLog, mode = 'NORM', disabled=false }) => {
             const coreTasks = getCoreTasksForMode(mode);
             const isCore = coreTasks.includes(id);
             return (
@@ -723,7 +1071,8 @@
                     type="button"
                     id={`task-card-${id}`} 
                     aria-pressed={checked}
-                    className={`w-full text-left flex items-start gap-4 p-4 rounded-xl transition-all border relative overflow-hidden min-h-[56px] touch-manipulation ${checked ? 'bg-amber-500/5 border-amber-500/20' : isCore ? 'bg-[#1a1510] border-amber-500/30 hover:border-amber-500/50' : 'bg-[#141414] border-[#262626] hover:border-amber-500/20'}`} 
+                    disabled={disabled}
+                    className={`w-full text-left flex items-start gap-4 p-4 rounded-xl transition-all border relative overflow-hidden min-h-[56px] touch-manipulation ${checked ? 'bg-amber-500/5 border-amber-500/20' : isCore ? 'bg-[#1a1510] border-amber-500/30 hover:border-amber-500/50' : 'bg-[#141414] border-[#262626] hover:border-amber-500/20'} ${disabled ? 'opacity-70 cursor-not-allowed' : ''}`} 
                     onClick={onChange}
                 >
                     <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center border-2 flex-shrink-0 ${checked ? 'bg-amber-500 border-transparent text-neutral-950' : isCore ? 'border-amber-500/70' : 'border-neutral-500'}`}>
@@ -744,7 +1093,7 @@
         });
         CheckItem.displayName = 'CheckItem';
 
-        const TipCard = React.memo(({ text, title="Контур контроля", iconName = "Zap" }) => (
+        const TipCard = React.memo(({ text, title="Подсказка.", iconName = "Zap" }) => (
             <div className="bg-[#121212] border border-[#262626] rounded-xl p-4 flex gap-3 items-start relative overflow-hidden shadow-sm">
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500"></div>
                 <div className="p-2 bg-amber-500/10 rounded-lg flex-shrink-0 text-amber-400 border border-amber-500/10">
@@ -758,7 +1107,7 @@
         ));
         TipCard.displayName = 'TipCard';
 
-        const FocusTimer = ({ defaultMinutes, taskName, taskId, category, xpReward, onCompleteTask, state, update, setGlobalFocusId, globalFocusId }) => {
+        const FocusTimer = ({ defaultMinutes, taskName, taskId, category, xpReward, onCompleteTask, state, update, setGlobalFocusId, globalFocusId, readOnly=false }) => {
             const [timeLeft, setTimeLeft] = useState(defaultMinutes * 60);
             const [isActive, setIsActive] = useState(false);
             const [isOpen, setIsOpen] = useState(false);
@@ -810,6 +1159,7 @@
             }, [isActive, taskId, category, xpReward, onCompleteTask, update, setGlobalFocusId, state.settings.soundEnabled, totalSeconds]);
 
             const handleToggleActive = () => {
+                if (readOnly) return;
                 const nextActive = !isActive;
                 if (nextActive) {
                     endTimeRef.current = Date.now() + timeLeft * 1000;
@@ -824,6 +1174,7 @@
             };
 
             const handleReset = () => {
+                if (readOnly) return;
                 setIsActive(false);
                 update('deepFocusActive', false);
                 setGlobalFocusId(null);
@@ -836,13 +1187,21 @@
             if (defaultMinutes <= 0) return null;
             if (state.deepFocusActive && globalFocusId !== taskId) return null;
 
+            if (readOnly) {
+                return (
+                    <div className="mt-2 text-xs text-neutral-400 bg-[#141414] border border-[#262626] rounded-xl p-3 font-medium">
+                        Таймер продуктивности доступен только владельцу.
+                    </div>
+                );
+            }
+
             const m = Math.floor(timeLeft / 60).toString().padStart(2, '0');
             const s = (timeLeft % 60).toString().padStart(2, '0');
             const progress = totalSeconds > 0 ? ((totalSeconds - timeLeft) / totalSeconds) * 100 : 0;
 
             if (!isOpen) return (
                 <div className="flex gap-2 mt-2 flex-wrap">
-                    <button type="button" onClick={() => { setIsMicro(false); setIsOpen(true); }} className="text-xs flex items-center gap-2 font-bold text-neutral-200 bg-[#1a1a1a] border border border-[#2d2d2d] px-3 py-2 rounded-xl hover:text-amber-400 min-h-[40px]">
+                    <button type="button" onClick={() => { setIsMicro(false); setIsOpen(true); }} className="text-xs flex items-center gap-2 font-bold text-neutral-200 bg-[#1a1a1a] border border-[#2d2d2d] px-3 py-2 rounded-xl hover:text-amber-400 min-h-[40px]">
                         <IconBase iconName="Clock" className="text-amber-500"/> Таймер {defaultMinutes} мин
                     </button>
                     <button type="button" onClick={() => { setIsMicro(true); setIsOpen(true); }} className="text-xs flex items-center gap-2 font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl min-h-[40px]">
@@ -876,7 +1235,7 @@
             );
         };
 
-        const BreathingTimer = ({ type, state, compact = false, onCompleteAction }) => {
+        const BreathingTimer = ({ type, state, compact = false, onCompleteAction, disabled=false }) => {
             const [phase, setPhase] = useState('Ожидание');
             const [timeLeft, setTimeLeft] = useState(0);
             const [isRunning, setIsRunning] = useState(false);
@@ -892,6 +1251,7 @@
             useEffect(() => { return () => clearTimer(); }, []);
 
             const startBreathing = () => {
+                if (disabled) return;
                 clearTimer();
                 setIsRunning(true);
                 setPhase('Вдох');
@@ -946,8 +1306,9 @@
                         </div>
                         <button
                             type="button"
+                            disabled={disabled && !isRunning}
                             onClick={isRunning ? handleReset : startBreathing}
-                            className="px-4 py-2 bg-[#1c1c1c] border border-[#333] hover:border-amber-500/30 text-neutral-200 rounded-lg text-xs font-bold uppercase min-h-[36px]"
+                            className="px-4 py-2 bg-[#1c1c1c] border border-[#333] hover:border-amber-500/30 text-neutral-200 rounded-lg text-xs font-bold uppercase min-h-[36px] disabled:opacity-30"
                         >
                             {isRunning ? 'Сброс' : 'Начать'}
                         </button>
@@ -966,7 +1327,7 @@
                     </div>
                     <div className="text-base font-mono font-bold text-white">{phase} {isRunning && `: ${timeLeft}`}</div>
                     <div className="flex gap-2 w-full">
-                        <button type="button" onClick={startBreathing} disabled={isRunning} className="flex-1 py-2 bg-[#1c1c1c] border border-[#333] hover:border-amber-500/30 text-neutral-200 rounded-lg font-bold text-xs uppercase disabled:opacity-40 min-h-[38px]">
+                        <button type="button" onClick={startBreathing} disabled={isRunning || disabled} className="flex-1 py-2 bg-[#1c1c1c] border border-[#333] hover:border-amber-500/30 text-neutral-200 rounded-lg font-bold text-xs uppercase disabled:opacity-30 min-h-[38px]">
                             {isRunning ? 'Идет цикл' : 'Начать'}
                         </button>
                         {isRunning && (
@@ -981,11 +1342,11 @@
             const data = {
                 AM: {
                     title: "Утренний манифест",
-                    text: "Я возвращаю внимание к тому, чем управляю сегодня. Моя задача — действовать спокойно, точно и последовательно. Я выбираю структуру, движение по вектору и реальные шаги."
+                    text: "Я возвращаю attention к тому, чем управляю сегодня. Моя задача — действовать спокойно, точно и последовательно. Я выбираю структуру, движение по вектору и реальные шаги."
                 },
                 PM: {
                     title: "Вечерний манифест",
-                    text: "День завершен. Моя текущая задача — убрать лишний шум, зафиксировать сделанное, восстановиться и вовремя лечь спать, чтобы завтра продолжить со свежими силами."
+                    text: "День завершен. Моя текущая задача — убрать лишний ментальный шум, зафиксировать сделанное, полностью восстановиться и вовремя лечь спать, чтобы завтра продолжить со свежими силами."
                 }
             }[type];
 
@@ -1002,11 +1363,11 @@
             );
         };
 
-        const CuttingPanel = ({ state, update }) => {
+        const CuttingPanel = ({ state, update, readOnly=false }) => {
             return (
                 <div className={`${THEME.panel} space-y-4`}>
                     <div className="flex items-center gap-2 border-b border-[#262626] pb-2">
-                        <div className="p-2 bg-amber-500/10 text-amber-400 rounded-xl">
+                        <div className="p-2 bg-amber-500/10 Triump-amber-400 rounded-xl text-amber-400">
                             <IconBase iconName="TrendingUp" size={16} />
                         </div>
                         <div>
@@ -1017,27 +1378,27 @@
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         <div>
                             <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Вес утром (кг)</label>
-                            <input type="text" placeholder="--.-" value={state.cuttingTracker.weightMorning || ''} onChange={e => update('cuttingTracker', { weightMorning: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50" />
+                            <input type="text" placeholder="--.-" disabled={readOnly} value={state.cuttingTracker.weightMorning || ''} onChange={e => update('cuttingTracker', { weightMorning: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50 disabled:opacity-60" />
                         </div>
                         <div>
                             <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Калории (ккал)</label>
-                            <input type="text" placeholder={`цель: ${state.nutrition.targetCalories}`} value={state.cuttingTracker.calories || ''} onChange={e => update('cuttingTracker', { calories: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50" />
+                            <input type="text" placeholder={`цель: ${state.nutrition.targetCalories}`} disabled={readOnly} value={state.cuttingTracker.calories || ''} onChange={e => update('cuttingTracker', { calories: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50 disabled:opacity-60" />
                         </div>
                         <div>
                             <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Белок (г)</label>
-                            <input type="text" placeholder={`цель: ${state.nutrition.proteinTarget}г`} value={state.cuttingTracker.protein || ''} onChange={e => update('cuttingTracker', { protein: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50" />
+                            <input type="text" placeholder={`цель: ${state.nutrition.proteinTarget}г`} disabled={readOnly} value={state.cuttingTracker.protein || ''} onChange={e => update('cuttingTracker', { protein: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50 disabled:opacity-60" />
                         </div>
                         <div>
                             <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Вода (л)</label>
-                            <input type="text" placeholder={`цель: ${state.nutrition.waterTarget}л`} value={state.cuttingTracker.water || ''} onChange={e => update('cuttingTracker', { water: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50" />
+                            <input type="text" placeholder={`цель: ${state.nutrition.waterTarget}л`} disabled={readOnly} value={state.cuttingTracker.water || ''} onChange={e => update('cuttingTracker', { water: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50 disabled:opacity-60" />
                         </div>
                         <div>
                             <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Шаги</label>
-                            <input type="text" placeholder="0" value={state.cuttingTracker.steps || ''} onChange={e => update('cuttingTracker', { steps: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50" />
+                            <input type="text" placeholder="0" disabled={readOnly} value={state.cuttingTracker.steps || ''} onChange={e => update('cuttingTracker', { steps: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50 disabled:opacity-60" />
                         </div>
                         <div>
                             <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Кардио (мин)</label>
-                            <input type="text" placeholder="0" value={state.cuttingTracker.cardioMinutes || ''} onChange={e => update('cuttingTracker', { cardioMinutes: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50" />
+                            <input type="text" placeholder="0" disabled={readOnly} value={state.cuttingTracker.cardioMinutes || ''} onChange={e => update('cuttingTracker', { cardioMinutes: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-amber-400 font-mono font-bold focus:outline-none focus:border-amber-500/50 disabled:opacity-60" />
                         </div>
                     </div>
                 </div>
@@ -1046,9 +1407,9 @@
 
         const DashboardView = ({ state, update, toggleTask, setGlobalFocusId, globalFocusId, onCodeClick }) => {
             const randomQuote = useMemo(() => {
-                const seed = (state.stats.xp || 0) + (state.streakCounter * 7);
+                const seed = (state.stats?.xp || 0) + (state.streakCounter * 7);
                 return STOIC_QUOTES[seed % STOIC_QUOTES.length];
-            }, [state.stats.xp, state.streakCounter]);
+            }, [state.stats?.xp, state.streakCounter]);
 
             const dayAnalytics = useMemo(() => {
                 const activeTasks = Object.keys(state.dailyTasks);
@@ -1125,9 +1486,13 @@
             }, [state.dailyTasks, state.currentMode, state.mainGoal]);
 
             const isCompact = state.settings.compactMode;
+            const wBlock = !canWrite(state);
 
             return (
                 <div className="space-y-5 transform transition-all anonymity-fade animate-in fade-in zoom-in-95">
+                    <AccessBanner state={state} setState={update} />
+                    <TodayHeader state={state} dayAnalytics={dayAnalytics} />
+                    
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         <div className="flex items-center gap-2">
                             <h2 className="text-xl font-bold text-white uppercase tracking-tight">Сегодня по плану</h2>
@@ -1141,8 +1506,9 @@
                             {['MAX', 'NORM', 'MIN', 'RECOVERY', 'SATURDAY', 'SUNDAY'].map(mId => (
                                 <button 
                                     type="button"
+                                    disabled={wBlock}
                                     key={mId} onClick={() => update('currentMode', mId)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 uppercase whitespace-nowrap min-h-[36px] ${state.currentMode === mId ? 'bg-amber-500 text-neutral-950 font-black' : 'text-neutral-400 hover:text-neutral-200'}`}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 uppercase whitespace-nowrap min-h-[36px] ${state.currentMode === mId ? 'bg-amber-500 text-neutral-950 font-black' : 'text-neutral-400 hover:text-neutral-200'} disabled:opacity-40`}
                                 >
                                     {MODES[mId]?.label || mId}
                                 </button>
@@ -1157,7 +1523,7 @@
                         </div>
                         <div className="p-3 bg-[#0a0a0a] rounded-xl border border-[#1f1f1f]">
                             <span className="text-[10px] text-neutral-400 font-bold uppercase block tracking-wider">Выполнение</span>
-                            <span className="text-xl font-mono font-bold text-amber-500">{dayAnalytics.percent}%</span>
+                            <span className="text-xl font-mono font-bold text-amber-400">{dayAnalytics.percent}%</span>
                         </div>
                         <div className="p-3 bg-[#0a0a0a] rounded-xl border border-[#1f1f1f]">
                             <span className="text-[10px] text-neutral-400 font-bold uppercase block tracking-wider">Ключевые якоря</span>
@@ -1183,8 +1549,9 @@
                             </div>
                             <button 
                                 type="button" 
+                                disabled={wBlock}
                                 onClick={() => toggleTask(nextBestAction.taskId, nextBestAction.category, nextBestAction.xp)}
-                                className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-black font-bold text-xs uppercase rounded-lg transition-colors border border-amber-500/30 whitespace-nowrap min-h-[38px]"
+                                className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-black font-bold text-xs uppercase rounded-lg transition-colors border border-amber-500/30 whitespace-nowrap min-h-[38px] disabled:opacity-40"
                             >
                                 Выполнить
                             </button>
@@ -1192,83 +1559,77 @@
                     )}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Блок базовых утренних задач */}
                         <div className="p-4 bg-[#121212] border border-[#262626] rounded-xl space-y-3">
                             <h4 className="text-xs font-bold text-amber-500 uppercase tracking-wider border-b border-[#222] pb-1">Старт дня и Языки</h4>
-                            <CheckItem id="waterAm" anchor="10:30" checked={state.dailyTasks.waterAm} timeLog={state.taskTimestamps.waterAm} onChange={() => toggleTask('waterAm', 'spirit', 5)} label="Вода после сна" subLabel="300-500 мл чистой воды для запуска организма." mode={state.currentMode} />
-                            <CheckItem id="morningHygiene" anchor="10:35" checked={state.dailyTasks.morningHygiene} timeLog={state.taskTimestamps.morningHygiene} onChange={() => toggleTask('morningHygiene', 'spirit', 5)} label="Утренний уход за собой" subLabel="Контрастный душ, чистка зубов и свежесть." mode={state.currentMode} />
-                            <CheckItem id="morningCharge" anchor="10:45" checked={state.dailyTasks.morningCharge} timeLog={state.taskTimestamps.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Лёгкая зарядка" subLabel="Суставная разминка, легкие потягивания." mode={state.currentMode} />
-                            <CheckItem id="breakfast" anchor="11:00" checked={state.dailyTasks.breakfast} timeLog={state.taskTimestamps.breakfast} onChange={() => toggleTask('breakfast', 'body', 5)} label="Сбалансированный завтрак" subLabel="Первый полноценный прием пищи по плану." mode={state.currentMode} />
+                            <CheckItem id="waterAm" anchor="10:30" disabled={wBlock} checked={state.dailyTasks.waterAm} timeLog={state.taskTimestamps.waterAm} onChange={() => toggleTask('waterAm', 'spirit', 5)} label="Вода после сна" subLabel="300-500 мл чистой воды для запуска организма." mode={state.currentMode} />
+                            <CheckItem id="morningHygiene" anchor="10:35" disabled={wBlock} checked={state.dailyTasks.morningHygiene} timeLog={state.taskTimestamps.morningHygiene} onChange={() => toggleTask('morningHygiene', 'spirit', 5)} label="Утренний уход за собой" subLabel="Контрастный душ, чистка зубов и свежесть." mode={state.currentMode} />
+                            <CheckItem id="morningCharge" anchor="10:45" disabled={wBlock} checked={state.dailyTasks.morningCharge} timeLog={state.taskTimestamps.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Лёгкая зарядка" subLabel="Суставная разминка, легкие потягивания." mode={state.currentMode} />
+                            <CheckItem id="breakfast" anchor="11:00" disabled={wBlock} checked={state.dailyTasks.breakfast} timeLog={state.taskTimestamps.breakfast} onChange={() => toggleTask('breakfast', 'body', 5)} label="Сбалансированный завтрак" subLabel="Первый прием пищи по плану сушки." mode={state.currentMode} />
                             
                             {['NORM', 'MAX'].includes(state.currentMode) && (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-[#222]/50">
-                                    <CheckItem id="spanish" anchor="Языки" checked={state.dailyTasks.spanish} timeLog={state.taskTimestamps.spanish} onChange={() => toggleTask('spanish', 'english', 10)} label="Испанский" subLabel="10-15 мин за завтраком." mode={state.currentMode} />
-                                    <CheckItem id="chinese" anchor="Языки" checked={state.dailyTasks.chinese} timeLog={state.taskTimestamps.chinese} onChange={() => toggleTask('chinese', 'english', 10)} label="Китайский" subLabel="10-15 мин с кириллицей." mode={state.currentMode} />
+                                    <CheckItem id="spanish" anchor="Языки" disabled={wBlock} checked={state.dailyTasks.spanish} timeLog={state.taskTimestamps.spanish} onChange={() => toggleTask('spanish', 'english', 10)} label="Испанский" subLabel="10-15 мин за завтраком." mode={state.currentMode} />
+                                    <CheckItem id="chinese" anchor="Языки" disabled={wBlock} checked={state.dailyTasks.chinese} timeLog={state.taskTimestamps.chinese} onChange={() => toggleTask('chinese', 'english', 10)} label="Китайский" subLabel="10-15 мин с кириллицей." mode={state.currentMode} />
                                 </div>
                             )}
                         </div>
 
-                        {/* Блок фокусной работы */}
                         <div className="p-4 bg-[#121212] border border-[#262626] rounded-xl space-y-3">
                             <h4 className="text-xs font-bold text-amber-500 uppercase tracking-wider border-b border-[#222] pb-1">Фокус и Обучение</h4>
                             {state.mainGoal.active && (
                                 <div className="p-3.5 bg-[#0a0a0a] rounded-xl border border-amber-500/10">
-                                    <CheckItem id="mainTask" anchor="11:45" checked={state.dailyTasks.mainTask} timeLog={state.taskTimestamps.mainTask} onChange={() => toggleTask('mainTask', 'pm', 20)} label={state.mainGoal.title || "Главная задача"} subLabel={state.mainGoal.description || "Ключевой вектор сегодняшнего дня."} mode={state.currentMode} />
-                                    {!state.dailyTasks.mainTask && <FocusTimer defaultMinutes={state.mainGoal.timeLimitMinutes} taskName={state.mainGoal.title} taskId="mainTask" category="pm" xpReward={20} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} />}
+                                    <CheckItem id="mainTask" anchor="11:45" disabled={wBlock} checked={state.dailyTasks.mainTask} timeLog={state.taskTimestamps.mainTask} onChange={() => toggleTask('mainTask', 'pm', 20)} label={state.mainGoal.title || "Главная задача"} subLabel={state.mainGoal.description || "Ключевой вектор сегодняшнего дня."} mode={state.currentMode} />
+                                    {!state.dailyTasks.mainTask && <FocusTimer defaultMinutes={state.mainGoal.timeLimitMinutes} taskName={state.mainGoal.title} taskId="mainTask" category="pm" xpReward={20} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} readOnly={wBlock} />}
                                 </div>
                             )}
                             
                             {['NORM', 'MAX'].includes(state.currentMode) && (
                                 <div className="p-3.5 bg-[#0a0a0a] rounded-xl border border-[#1f1f1f] space-y-2">
-                                    <CheckItem id="pm" anchor="12:45" checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', 15)} label="Project Management" subLabel="До 60 минут плотного структурированного обучения." mode={state.currentMode} />
-                                    {!state.dailyTasks.pm && <FocusTimer defaultMinutes={(MODES[state.currentMode]?.pmTime ?? 60)} taskName="PM Обучение" taskId="pm" category="pm" xpReward={15} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} />}
+                                    <CheckItem id="pm" anchor="12:45" disabled={wBlock} checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', 15)} label="Project Management" subLabel="До 60 минут плотного структурированного обучения." mode={state.currentMode} />
+                                    {!state.dailyTasks.pm && <FocusTimer defaultMinutes={(MODES[state.currentMode]?.pmTime ?? 60)} taskName="PM Обучение" taskId="pm" category="pm" xpReward={15} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} readOnly={wBlock} />}
                                 </div>
                             )}
 
                             {['NORM', 'MAX'].includes(state.currentMode) && (
                                 <div className="p-3.5 bg-[#0a0a0a] rounded-xl border border-[#1f1f1f] space-y-2">
-                                    <CheckItem id="english" anchor="13:45" checked={state.dailyTasks.english} timeLog={state.taskTimestamps.english} onChange={() => toggleTask('english', 'english', 15)} label="Английский язык" subLabel="До 30 минут речевой практики без перегруза." mode={state.currentMode} />
-                                    {!state.dailyTasks.english && <FocusTimer defaultMinutes={(MODES[state.currentMode]?.engTime ?? 30)} taskName="Английская практика" taskId="english" category="english" xpReward={15} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} />}
+                                    <CheckItem id="english" anchor="13:45" disabled={wBlock} checked={state.dailyTasks.english} timeLog={state.taskTimestamps.english} onChange={() => toggleTask('english', 'english', 15)} label="Английский язык" subLabel="До 30 минут речевой практики без перегруза." mode={state.currentMode} />
+                                    {!state.dailyTasks.english && <FocusTimer defaultMinutes={(MODES[state.currentMode]?.engTime ?? 30)} taskName="Английская практика" taskId="english" category="english" xpReward={15} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} readOnly={wBlock} />}
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Блок сушки и тренировок */}
-                    {!isCompact && <CuttingPanel state={state} update={update} />}
+                    {!isCompact && <CuttingPanel state={state} update={update} readOnly={wBlock} />}
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Рабочий и спортивный блок */}
                         <div className="p-4 bg-[#121212] border border-[#262626] rounded-xl space-y-3">
                             <h4 className="text-xs font-bold text-amber-500 uppercase tracking-wider border-b border-[#222] pb-1">Работа в «Стимуле» и Тренинг</h4>
-                            <CheckItem id="workStart" anchor="16:00" checked={state.dailyTasks.workStart} timeLog={state.taskTimestamps.workStart} onChange={() => toggleTask('workStart', 'pm', 10)} label="Старт рабочей смены" subLabel="Начало ведения клиентов и работы в фитнес-клубе." mode={state.currentMode} />
+                            <CheckItem id="workStart" anchor="16:00" disabled={wBlock} checked={state.dailyTasks.workStart} timeLog={state.taskTimestamps.workStart} onChange={() => toggleTask('workStart', 'pm', 10)} label="Старт рабочей смены" subLabel="Начало ведения клиентов и работы в фитнес-клубе." mode={state.currentMode} />
                             {state.currentMode !== 'RECOVERY' && (
-                                <CheckItem id="body" anchor="В зале" checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label="Силовая тренировка (1 час)" subLabel="Плотный тренинг, встроенный в рабочий перерыв." mode={state.currentMode} />
+                                <CheckItem id="body" anchor="В зале" disabled={wBlock} checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label="Силовая тренировка (1 час)" subLabel="Плотный тренинг, встроенный в рабочий перерыв." mode={state.currentMode} />
                             )}
-                            <CheckItem id="workMeal" anchor="19:00" checked={state.dailyTasks.workMeal} timeLog={state.taskTimestamps.workMeal} onChange={() => toggleTask('workMeal', 'body', 10)} label="Рабочий прием пищи" subLabel="Плановый контейнер с едой для контроля аппетита." mode={state.currentMode} />
+                            <CheckItem id="workMeal" anchor="19:00" disabled={wBlock} checked={state.dailyTasks.workMeal} timeLog={state.taskTimestamps.workMeal} onChange={() => toggleTask('workMeal', 'body', 10)} label="Рабочий прием пищи" subLabel="Плановый контейнер с едой для контроля аппетита." mode={state.currentMode} />
                         </div>
 
-                        {/* Вечерний блок, восстановление */}
                         <div className="p-4 bg-[#121212] border border-[#262626] rounded-xl space-y-3">
                             <h4 className="text-xs font-bold text-amber-500 uppercase tracking-wider border-b border-[#222] pb-1">Вечерний возврат и Сон</h4>
-                            <CheckItem id="homeArrival" anchor="22:40" checked={state.dailyTasks.homeArrival} timeLog={state.taskTimestamps.homeArrival} onChange={() => toggleTask('homeArrival', 'spirit', 5)} label="Приезд домой" subLabel="Переодеться, стакан воды, ментальное расслабление." mode={state.currentMode} />
-                            <CheckItem id="cardio" anchor="22:50" checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио сессия" subLabel="20–30 минут легкой ходьбы дома для жиросжигания." mode={state.currentMode} />
-                            <CheckItem id="dinner" anchor="23:25" checked={state.dailyTasks.dinner} timeLog={state.taskTimestamps.dinner} onChange={() => toggleTask('dinner', 'body', 10)} label="Легкий ужин" subLabel="Белок + простые овощи. Завершающий прием пищи." mode={state.currentMode} />
-                            <CheckItem id="plannedProcrastination" anchor="23:50" checked={state.dailyTasks.plannedProcrastination} timeLog={state.taskTimestamps.plannedProcrastination} onChange={() => toggleTask('plannedProcrastination', 'spirit', 5)} label="Плановая прокрастинация" subLabel="Разрешенный чистый отдых без гаджетов или легкое залипание." mode={state.currentMode} />
+                            <CheckItem id="homeArrival" anchor="22:40" disabled={wBlock} checked={state.dailyTasks.homeArrival} timeLog={state.taskTimestamps.homeArrival} onChange={() => toggleTask('homeArrival', 'spirit', 5)} label="Приезд домой" subLabel="Переодеться, стакан воды, ментальное расслабление." mode={state.currentMode} />
+                            <CheckItem id="cardio" anchor="22:50" disabled={wBlock} checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио сессия" subLabel="20–30 минут легкой ходьбы дома для жиросжигания." mode={state.currentMode} />
+                            <CheckItem id="dinner" anchor="23:25" disabled={wBlock} checked={state.dailyTasks.dinner} timeLog={state.taskTimestamps.dinner} onChange={() => toggleTask('dinner', 'body', 10)} label="Легкий ужин" subLabel="Белок + простые овощи. Завершающий прием пищи." mode={state.currentMode} />
+                            <CheckItem id="plannedProcrastination" anchor="23:50" disabled={wBlock} checked={state.dailyTasks.plannedProcrastination} timeLog={state.taskTimestamps.plannedProcrastination} onChange={() => toggleTask('plannedProcrastination', 'spirit', 5)} label="Плановая прокрастинация" subLabel="Разрешенный чистый отдых без гаджетов или легкое залипание." mode={state.currentMode} />
                             <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#222]/50">
-                                <CheckItem id="eveningHygiene" anchor="00:15" checked={state.dailyTasks.eveningHygiene} timeLog={state.taskTimestamps.eveningHygiene} onChange={() => toggleTask('eveningHygiene', 'spirit', 5)} label="Уход за зубами" subLabel="Щетка, ирригатор." mode={state.currentMode} />
-                                <CheckItem id="nightSupplements" anchor="00:30" checked={state.dailyTasks.nightSupplements} timeLog={state.taskTimestamps.nightSupplements} onChange={() => toggleTask('nightSupplements', 'body', 5)} label="Добавки на ночь" subLabel="Магний + 5-HTP." mode={state.currentMode} />
+                                <CheckItem id="eveningHygiene" anchor="00:15" disabled={wBlock} checked={state.dailyTasks.eveningHygiene} timeLog={state.taskTimestamps.eveningHygiene} onChange={() => toggleTask('eveningHygiene', 'spirit', 5)} label="Уход за зубами" subLabel="Щетка, ирригатор." mode={state.currentMode} />
+                                <CheckItem id="nightSupplements" anchor="00:30" disabled={wBlock} checked={state.dailyTasks.nightSupplements} timeLog={state.taskTimestamps.nightSupplements} onChange={() => toggleTask('nightSupplements', 'body', 5)} label="Добавки на ночь" subLabel="Магний + 5-HTP." mode={state.currentMode} />
                             </div>
-                            <CheckItem id="sleep" anchor="01:00" checked={state.dailyTasks.sleep} timeLog={state.taskTimestamps.sleep} onChange={() => toggleTask('sleep', 'spirit', 10)} label="Лечь спать" subLabel="Своевременное выключение для глубокого восстановления." mode={state.currentMode} />
+                            <CheckItem id="sleep" anchor="01:00" disabled={wBlock} checked={state.dailyTasks.sleep} timeLog={state.taskTimestamps.sleep} onChange={() => toggleTask('sleep', 'spirit', 10)} label="Лечь спать" subLabel="Своевременное выключение для глубокого восстановления." mode={state.currentMode} />
                         </div>
                     </div>
 
-                    {/* Выходные специфичные блоки */}
                     {['SATURDAY', 'SUNDAY'].includes(state.currentMode) && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <CheckItem id="creativity" anchor="Суббота / Воскресенье" checked={state.dailyTasks.creativity} timeLog={state.taskTimestamps.creativity} onChange={() => toggleTask('creativity', 'content', 15)} label="Музыка и Творчество" subLabel="Свободная генерация идей в Suno или ведение заметок." mode={state.currentMode} />
+                            <CheckItem id="creativity" anchor="Суббота / Воскресенье" disabled={wBlock} checked={state.dailyTasks.creativity} timeLog={state.taskTimestamps.creativity} onChange={() => toggleTask('creativity', 'content', 15)} label="Музыка и Творчество" subLabel="Свободная генерация идей в Suno или ведение заметок." mode={state.currentMode} />
                             {state.currentMode === 'SUNDAY' && (
-                                <CheckItem id="weeklyPlanning" anchor="Воскресенье" checked={state.dailyTasks.weeklyPlanning} timeLog={state.taskTimestamps.weeklyPlanning} onChange={() => toggleTask('weeklyPlanning', 'pm', 15)} label="Планирование недели" subLabel="30–45 минут: набросать сетку задач, тренировок и меню на физической доске." mode={state.currentMode} />
+                                <CheckItem id="weeklyPlanning" anchor="Воскресенье" disabled={wBlock} checked={state.dailyTasks.weeklyPlanning} timeLog={state.taskTimestamps.weeklyPlanning} onChange={() => toggleTask('weeklyPlanning', 'pm', 15)} label="Планирование недели" subLabel="30–45 минут: набросать сетку задач и меню на физической доске." mode={state.currentMode} />
                             )}
                         </div>
                     )}
@@ -1286,9 +1647,11 @@
             );
         };
 
-        const ScheduleView = ({ state, update }) => {
+        const ScheduleView = ({ state, update, toggleTask }) => {
+            const wBlock = !canWrite(state);
             return (
                 <div className="space-y-4 transform transition-all anonymity-fade animate-in fade-in zoom-in-95">
+                    <AccessBanner state={state} setState={update} />
                     <div>
                         <h1 className="text-2xl font-bold text-white uppercase">Распорядок дня</h1>
                         <p className="text-sm text-neutral-400 font-medium">План по привычным якорям: событие → действие. Это гибкий ориентир, а не жесткая тюрьма.</p>
@@ -1298,15 +1661,15 @@
                         {['MAX', 'NORM', 'MIN', 'RECOVERY', 'SATURDAY', 'SUNDAY'].map(mId => (
                             <button 
                                 type="button"
+                                disabled={wBlock}
                                 key={mId} onClick={() => update('currentMode', mId)}
-                                className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 uppercase whitespace-nowrap min-h-[36px] ${state.currentMode === mId ? 'bg-amber-500 text-neutral-950 font-black' : 'text-neutral-400 hover:text-neutral-200'}`}
+                                className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 uppercase whitespace-nowrap min-h-[36px] ${state.currentMode === mId ? 'bg-amber-500 text-neutral-950 font-black' : 'text-neutral-400 hover:text-neutral-200'} disabled:opacity-40`}
                             >
                                 {MODES[mId]?.label || mId}
                             </button>
                         ))}
                     </div>
 
-                    {/* Цепочка дня */}
                     <div className="p-4 bg-[#121212] border border-[#262626] rounded-xl">
                         <h3 className="text-xs font-bold uppercase text-amber-400 mb-2.5 tracking-wider">Идеальная цепочка якорей</h3>
                         <div className="flex flex-wrap gap-x-2 gap-y-1 text-sm font-medium text-neutral-300">
@@ -1326,34 +1689,53 @@
                         </div>
                     </div>
 
-                    {/* Вертикальный таймлайн */}
                     <div className="bg-[#121212] border border-[#262626] rounded-2xl p-4 md:p-6 shadow-lg">
                         <div className="relative border-l border-[#262626] ml-2 space-y-4 py-1">
                             {DAY_ANCHORS.map((item, i) => {
-                                // Логика фильтрации задач в зависимости от режима
                                 const isRecovery = state.currentMode === 'RECOVERY';
                                 const isMin = state.currentMode === 'MIN';
                                 const isWeekend = ['SATURDAY', 'SUNDAY'].includes(state.currentMode);
                                 
-                                // Мягко пропускаем рабочие/учебные блоки в режиме восстановления или выходных
                                 if (isRecovery && (item.taskIds.includes('pm') || item.taskIds.includes('english') || item.taskIds.includes('workStart'))) return null;
                                 if (isMin && (item.taskIds.includes('english') || item.taskIds.includes('spanish') || item.taskIds.includes('chinese'))) return null;
                                 if (isWeekend && (item.taskIds.includes('pm') || item.taskIds.includes('english') || item.taskIds.includes('workStart'))) return null;
                                 if (!state.mainGoal.active && item.taskIds.includes('mainTask')) return null;
 
+                                const isAnchorDone = item.taskIds.length > 0 && item.taskIds.every(id => state.dailyTasks[id]);
+
                                 return (
                                     <div key={i} className="relative pl-6 md:pl-8">
-                                        <div className="absolute -left-[13px] top-1.5 w-6 h-6 rounded-full border border-[#262626] bg-[#0a0a0a] flex items-center justify-center text-amber-500">
-                                            <IconBase iconName="Clock" size={11} />
+                                        <div className={`absolute -left-[13px] top-1.5 w-6 h-6 rounded-full border bg-[#0a0a0a] flex items-center justify-center ${isAnchorDone ? 'border-amber-500 text-amber-500' : 'border-[#262626] text-neutral-500'}`}>
+                                            <IconBase iconName={isAnchorDone ? "Check" : "Clock"} size={11} />
                                         </div>
-                                        <div className="p-4 rounded-xl bg-[#161616]/60 border border-[#222] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                            <div className="space-y-1">
+                                        <div className="p-4 rounded-xl bg-[#161616]/60 border border-[#222] flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                            <div className="space-y-1 flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     <span className="font-mono font-bold text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded">{item.time}</span>
                                                     <span className="text-xs font-bold uppercase tracking-wider text-neutral-400">Якорь: {item.anchor}</span>
                                                 </div>
                                                 <h3 className="text-base font-bold text-white uppercase tracking-wide">{item.title}</h3>
                                                 <p className="text-sm text-neutral-300 leading-relaxed font-medium">{item.note}</p>
+                                                
+                                                {item.taskIds.length > 0 && (
+                                                    <div className="pt-2 flex flex-wrap gap-2">
+                                                        {item.taskIds.map(taskId => {
+                                                            const taskDone = !!state.dailyTasks[taskId];
+                                                            const label = taskId === 'mainTask' ? (state.mainGoal?.title || 'Главная задача') : (TASK_LABELS[taskId] || taskId);
+                                                            return (
+                                                                <button 
+                                                                    key={taskId}
+                                                                    type="button"
+                                                                    disabled={wBlock}
+                                                                    onClick={() => toggleTask(taskId, 'spirit', 10)}
+                                                                    className={`px-2.5 py-1 rounded-lg font-bold font-sans text-[11px] uppercase border transition-all ${taskDone ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 line-through' : 'bg-[#0f0f0f] border-[#2d2d2d] text-neutral-300 hover:border-amber-500/20'} disabled:opacity-70`}
+                                                                >
+                                                                    {taskDone ? '✓ ' : ''}{label}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -1365,34 +1747,36 @@
             );
         };
 
-        const LearningView = ({ state, saveDailyNote, addLanguagePhrase }) => {
+        const LearningView = ({ state, saveDailyNote, addLanguagePhrase, update }) => {
             const [pmInput, setPmInput] = useState('');
             const [engInput, setEngInput] = useState('');
             const [langPhrase, setLangPhrase] = useState('');
             const [langTranslit, setLangTranslit] = useState('');
             const [langTranslation, setLangTranslation] = useState('');
+            const wBlock = !canWrite(state);
 
             return (
                 <div className="space-y-5 transform transition-all anonymity-fade animate-in fade-in zoom-in-95">
+                    <AccessBanner state={state} setState={update} />
                     <h1 className="text-2xl font-bold text-white uppercase">Заметки и обучение</h1>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="BookOpen" className="text-amber-500" size={16}/> <span>Бизнес-инсайты Павла</span></h2>
-                            <textarea rows={3} placeholder="Фиксация мыслей по управлению, стратегиям ведения клиентов и развитию личного бренда..." value={pmInput} onChange={e => setPmInput(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-white placeholder:text-neutral-700 focus:outline-none focus:border-amber-500/50 text-sm resize-none font-medium leading-relaxed" />
+                            <textarea rows={3} disabled={wBlock} placeholder="Фиксация мыслей по управлению, стратегиям ведения клиентов и развитию личного бренда..." value={pmInput} onChange={e => setPmInput(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-white placeholder:text-neutral-700 focus:outline-none focus:border-amber-500/50 text-sm resize-none font-medium leading-relaxed disabled:opacity-60" />
                             <Button variant="secondary" className="w-full mt-2" onClick={() => { if(pmInput.trim()){ saveDailyNote(pmInput, 'PM'); setPmInput(''); }}}>Сохранить в буфер</Button>
                         </div>
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Globe" className="text-amber-500" size={16}/> <span>English Speech Модули</span></h2>
-                            <textarea rows={3} placeholder="Фразы, речевые обороты и мысли для масштабирования личного бренда на английском..." value={engInput} onChange={e => setEngInput(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-white placeholder:text-neutral-700 focus:outline-none focus:border-amber-500/50 text-sm resize-none font-medium leading-relaxed" />
+                            <textarea rows={3} disabled={wBlock} placeholder="Фразы, речевые обороты и мысли для масштабирования личного бренда на английском..." value={engInput} onChange={e => setEngInput(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-white placeholder:text-neutral-700 focus:outline-none focus:border-amber-500/50 text-sm resize-none font-medium leading-relaxed disabled:opacity-60" />
                             <Button variant="secondary" className="w-full mt-2" onClick={() => { if(engInput.trim()){ saveDailyNote(engInput, 'ENG'); setEngInput(''); }}}>Фиксировать в системе</Button>
                         </div>
                         <div className={`${THEME.panel} lg:col-span-2`}>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Utensils" className="text-amber-400" size={16}/> <span>Лингво-интеграция за завтраком (Испанский / Китайский)</span></h2>
                             <div className="space-y-3">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <input type="text" placeholder="Иноязычное слово / иероглиф" value={langPhrase} onChange={e => setLangPhrase(e.target.value)} className="bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500/50 border-l-2 border-l-amber-500 font-medium" />
-                                    <input type="text" placeholder="Кириллическая транслитерация (для китайского)" value={langTranslit} onChange={e => setLangTranslit(e.target.value)} className="bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500/50 font-medium" />
-                                    <input type="text" placeholder="Смысловой перевод на русский" value={langTranslation} onChange={e => setLangTranslation(e.target.value)} className="bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500/50 font-medium" />
+                                    <input type="text" disabled={wBlock} placeholder="Иноязычное слово / иероглиф" value={langPhrase} onChange={e => setLangPhrase(e.target.value)} className="bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500/50 border-l-2 border-l-amber-500 font-medium disabled:opacity-60" />
+                                    <input type="text" disabled={wBlock} placeholder="Кириллическая транслитерация (для китайского)" value={langTranslit} onChange={e => setLangTranslit(e.target.value)} className="bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500/50 font-medium disabled:opacity-60" />
+                                    <input type="text" disabled={wBlock} placeholder="Смысловой перевод на русский" value={langTranslation} onChange={e => setLangTranslation(e.target.value)} className="bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500/50 font-medium disabled:opacity-60" />
                                 </div>
                                 <Button className="w-full" onClick={() => { if(langPhrase.trim() && langTranslation.trim()){ const payload = langTranslit.trim() ? `${langPhrase} → [${langTranslit}] → ${langTranslation}` : `${langPhrase} → ${langTranslation}`; addLanguagePhrase(payload); setLangPhrase(''); setLangTranslit(''); setLangTranslation(''); }}}>Построить языковую связь</Button>
                                 {state.languagePhrases && state.languagePhrases.length > 0 && (
@@ -1412,33 +1796,37 @@
         };
 
         const BodyView = ({ state, update, toggleTask }) => {
+            const wBlock = !canWrite(state);
             return (
                 <div className="space-y-5 transform transition-all anonymity-fade animate-in fade-in zoom-in-95">
+                    <AccessBanner state={state} setState={update} />
                     <h1 className="text-2xl font-bold text-white uppercase">Физическая форма и ресурсы</h1>
                     <TipCard text="Ваша физическая форма — главный рабочий актив. Силовой тренинг в «Стимуле», адекватное кардио после работы и четкая гидратация формируют уровень вашей энергии." iconName="Dumbbell" />
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className={`${THEME.panel} space-y-4`}>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Activity" className="text-amber-400" size={16}/> <span>Движение и нагрузки</span></h2>
-                            <CheckItem id="morningCharge" anchor="Утро" checked={state.dailyTasks.morningCharge} timeLog={state.taskTimestamps.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Разминка суставов" subLabel="2–5 минут легкого движения сразу после подъема." mode={state.currentMode} />
-                            <CheckItem id="body" anchor="Работа" checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label="Силовая тренировка 1 час" subLabel="Основной тренировочный объем в фитнес-клубе." mode={state.currentMode} />
-                            <CheckItem id="cardio" anchor="Вечер" checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Легкое кардио после работы" subLabel="20–30 минут спокойного движения для жиросжигания." mode={state.currentMode} />
+                            <CheckItem id="morningCharge" anchor="Утро" disabled={wBlock} checked={state.dailyTasks.morningCharge} timeLog={state.taskTimestamps.morningCharge} onChange={() => toggleTask('morningCharge', 'body', 5)} label="Разминка суставов" subLabel="2–5 минут легкого движения сразу после подъема." mode={state.currentMode} />
+                            <CheckItem id="body" anchor="Работа" disabled={wBlock} checked={state.dailyTasks.body} timeLog={state.taskTimestamps.body} onChange={() => toggleTask('body', 'body', 20)} label="Силовая тренировка 1 час" subLabel="Основной тренировочный объем в фитнес-клубе." mode={state.currentMode} />
+                            <CheckItem id="cardio" anchor="Вечер" disabled={wBlock} checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Легкое кардио после работы" subLabel="20–30 минут спокойного движения для жиросжигания." mode={state.currentMode} />
                         </div>
                         <div className={`${THEME.panel} space-y-4`}>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Battery" className="text-amber-500" size={16}/> <span>Сон и метрики восстановления</span></h2>
-                            <NumericInput label="Фактическая продолжительность сна (ч)" min={0} max={12} step={0.5} value={state.energyMetrics.sleep} onChange={(v) => update('energyMetrics', {sleep: v})} />
-                            <NumericInput label="Субъективный уровень утренней энергии" hint="1-10" min={1} max={10} value={state.energyMetrics.energy} onChange={(v) => update('energyMetrics', {energy: v})} />
-                            <NumericInput label="Индекс готовности к силовым нагрузкам" hint="1-10" min={1} max={10} value={state.energyMetrics.readiness} onChange={(v) => update('energyMetrics', {readiness: v})} />
+                            <NumericInput label="Фактическая продолжительность сна (ч)" readOnly={wBlock} min={0} max={12} step={0.5} value={state.energyMetrics.sleep} onChange={(v) => update('energyMetrics', {sleep: v})} />
+                            <NumericInput label="Субъективный уровень утренней энергии" hint="1-10" readOnly={wBlock} min={1} max={10} value={state.energyMetrics.energy} onChange={(v) => update('energyMetrics', {energy: v})} />
+                            <NumericInput label="Индекс готовности к силовым нагрузкам" hint="1-10" readOnly={wBlock} min={1} max={10} value={state.energyMetrics.readiness} onChange={(v) => update('energyMetrics', {readiness: v})} />
                         </div>
                     </div>
-                    <CuttingPanel state={state} update={update} />
+                    <CuttingPanel state={state} update={update} readOnly={wBlock} />
                 </div>
             );
         };
 
         const ContentView = ({ state, update, saveDailyNote }) => {
             const [contentIdea, setContentIdea] = useState('');
+            const wBlock = !canWrite(state);
             
             const insertScriptTemplate = (type) => {
+                if (wBlock) return;
                 let template = "";
                 if (type === 'dogma') {
                     template = "ХУК: Почему слепая вера в популярные советы уводит вас от результатов...\n\nСУТЬ: Разбор иллюзий и замена их на дисциплину, жесткую структуру и ежедневное выполнение базовых алгоритмов.\n\nПРИЗЫВ: Хватит хаоса. Внедряйте понятную рабочую систему.";
@@ -1452,23 +1840,24 @@
 
             return (
                 <div className="space-y-5 transform transition-all anonymity-fade animate-in fade-in zoom-in-95">
+                    <AccessBanner state={state} setState={update} />
                     <h1 className="text-2xl font-bold text-white uppercase">Создание контента</h1>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-2 uppercase"><IconBase iconName="Edit3" className="text-amber-500" size={16}/> <span>Инкубатор сценариев (Reels / Блог)</span></h2>
                             <div className="flex flex-wrap gap-1.5 mb-3">
-                                <button type="button" onClick={() => insertScriptTemplate('dogma')} className="text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1.5 rounded-lg hover:bg-amber-500/20">Разрушение догм</button>
-                                <button type="button" onClick={() => insertScriptTemplate('will')} className="text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1.5 rounded-lg hover:bg-amber-500/20">Архитектура привычек</button>
-                                <button type="button" onClick={() => insertScriptTemplate('time')} className="text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1.5 rounded-lg hover:bg-amber-500/20">Математика времени</button>
+                                <button type="button" disabled={wBlock} onClick={() => insertScriptTemplate('dogma')} className="text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1.5 rounded-lg hover:bg-amber-500/20 disabled:opacity-40">Разрушение догм</button>
+                                <button type="button" disabled={wBlock} onClick={() => insertScriptTemplate('will')} className="text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1.5 rounded-lg hover:bg-amber-500/20 disabled:opacity-40">Архитектура привычек</button>
+                                <button type="button" disabled={wBlock} onClick={() => insertScriptTemplate('time')} className="text-[10px] font-bold uppercase tracking-wide bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1.5 rounded-lg hover:bg-amber-500/20 disabled:opacity-40">Математика времени</button>
                             </div>
-                            <textarea rows={5} placeholder="Тексты будущих роликов, идеи для Instagram/TikTok, тезисы глав..." value={contentIdea} onChange={e => setContentIdea(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-white placeholder:text-neutral-700 focus:outline-none focus:border-amber-500/50 text-sm resize-none leading-relaxed font-medium" />
+                            <textarea rows={5} disabled={wBlock} placeholder="Тексты будущих роликов, идеи для Instagram/TikTok, тезисы глав..." value={contentIdea} onChange={e => setContentIdea(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-white placeholder:text-neutral-700 focus:outline-none focus:border-amber-500/50 text-sm resize-none leading-relaxed font-medium disabled:opacity-60" />
                             <Button className="w-full mt-2" onClick={() => { if(contentIdea.trim()){ saveDailyNote(contentIdea, 'CONTENT'); setContentIdea(''); }}}>Интегрировать идею контента</Button>
                         </div>
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="TrendingUp" className="text-amber-500" size={16}/> <span>Производственный цикл публикации</span></h2>
                             <div className="space-y-1.5">
                                 {['Ключевой смысл зафиксирован в Obsidian', 'Сценарий детально прописан по структуре', 'Видеоматериал полностью отснят', 'Монтаж, звук и цветокоррекция завершены', 'Контент успешно опубликован на платформах'].map((step, i) => (
-                                    <button type="button" key={i} className={`w-full p-3 rounded-lg border flex justify-between items-center transition-all min-h-[44px] ${state.contentLadder >= i ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-[#0a0a0a] border-[#262626] text-neutral-400'}`} onClick={() => update('contentLadder', state.contentLadder === i ? i - 1 : i)}>
+                                    <button type="button" key={i} disabled={wBlock} className={`w-full p-3 rounded-lg border flex justify-between items-center transition-all min-h-[44px] ${state.contentLadder >= i ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-[#0a0a0a] border-[#262626] text-neutral-400'} disabled:opacity-80`} onClick={() => update('contentLadder', state.contentLadder === i ? i - 1 : i)}>
                                         <span className="text-sm font-bold uppercase tracking-wide">{i+1}. {step}</span>
                                         {state.contentLadder >= i && <IconBase iconName="Check" size={12} strokeWidth={3} />}
                                     </button>
@@ -1480,19 +1869,21 @@
             );
         };
 
-        const RitualsView = ({ state, toggleTask, onCodeClick }) => {
+        const RitualsView = ({ state, toggleTask, onCodeClick, update }) => {
+            const wBlock = !canWrite(state);
             return (
                 <div className="space-y-5 transform transition-all anonymity-fade animate-in fade-in zoom-in-95">
+                    <AccessBanner state={state} setState={update} />
                     <h1 className="text-2xl font-bold text-white uppercase">Ритуалы и Манифесты</h1>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className={`${THEME.panel} border-t-2 border-t-amber-500`}>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-2 uppercase"><IconBase iconName="Flame" className="text-amber-400" size={16}/> <span>Утренний настрой</span></h2>
-                            <BreathingTimer type="morning" state={state} onCompleteAction={() => toggleTask('breathAm', 'spirit', 10, true)} />
+                            <BreathingTimer type="morning" state={state} onCompleteAction={() => toggleTask('breathAm', 'spirit', 10, true)} disabled={wBlock} />
                             <ManifestReader type="AM" onCodeClick={onCodeClick} />
                         </div>
                         <div className={`${THEME.panel} border-t-2 border-t-amber-600`}>
                             <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-2 uppercase"><IconBase iconName="Moon" className="text-amber-500" size={16}/> <span>Вечерняя разгрузка</span></h2>
-                            <BreathingTimer type="evening" state={state} onCompleteAction={() => toggleTask('breathPm', 'spirit', 10, true)} />
+                            <BreathingTimer type="evening" state={state} onCompleteAction={() => toggleTask('breathPm', 'spirit', 10, true)} disabled={wBlock} />
                             <ManifestReader type="PM" onCodeClick={onCodeClick} />
                         </div>
                     </div>
@@ -1500,49 +1891,91 @@
             );
         };
 
-        const HistoryView = ({ state }) => {
+        const HistoryView = ({ state, update }) => {
+            const [expandedDay, setExpandedDay] = useState(null);
+
+            const safeTime = (date) => {
+                if (!date) return 0;
+                const time = new Date(date).getTime();
+                return Number.isFinite(time) ? time : 0;
+            };
+
             const sortedHistory = useMemo(() => {
                 return Object.values(state.history || {})
                     .filter(Boolean)
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                    .sort((a, b) => safeTime(b.archivedAt || b.date) - safeTime(a.archivedAt || a.date));
             }, [state.history]);
 
             const historyList30 = useMemo(() => sortedHistory.slice(0, 30), [sortedHistory]);
 
             return (
                 <div className="space-y-5 transform transition-all anonymity-fade animate-in fade-in zoom-in-95">
+                    <AccessBanner state={state} setState={update} />
                     <h1 className="text-2xl font-bold text-white uppercase">История выполненных дней</h1>
                     <div className={`${THEME.panel}`}>
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Лог предыдущих периодов</h3>
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Лог предыдущих периодов (До 30 дней)</h3>
                         {historyList30.length === 0 ? (
-                            <p className="text-sm text-neutral-500 italic text-center py-6">Ваша история активности начнет заполняться со следующего дня.</p>
+                            <p className="text-sm text-neutral-500 italic text-center py-6">Ваша история активности начнет заполняться со следующего календарного дня.</p>
                         ) : (
-                            <div className="space-y-3 max-h-96 overflow-y-auto hide-scrollbar pr-1">
+                            <div className="space-y-3 max-h-[500px] overflow-y-auto hide-scrollbar pr-1">
                                 {historyList30.map((day, idx) => {
-                                    const total = Object.keys(day.dailyTasks || {}).length;
-                                    const completed = Object.values(day.dailyTasks || {}).filter(Boolean).length;
-                                    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+                                    const total = day.total || Object.keys(day.dailyTasks || {}).length;
+                                    const completed = day.completed !== undefined ? day.completed : Object.values(day.dailyTasks || {}).filter(Boolean).length;
+                                    const pct = day.completionPercent !== undefined ? day.completionPercent : (total > 0 ? Math.round((completed / total) * 100) : 0);
                                     
-                                    const modeCore = getCoreTasksForMode(day.currentMode || 'NORM', day.mainGoal?.active);
-                                    const coreCount = modeCore.filter(k => day.dailyTasks?.[k]).length;
-                                    
+                                    const isExpanded = expandedDay === day.date;
+
                                     return (
-                                        <div key={idx} className="p-4 bg-[#0a0a0a] border border-[#262626] rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                                            <div className="space-y-1">
-                                                <span className="text-sm font-mono font-bold text-white">{day.date}</span>
-                                                <div className="flex gap-2 items-center flex-wrap">
-                                                    <span className="text-[10px] font-bold bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded uppercase">{day.currentMode || 'NORM'}</span>
-                                                    <span className="text-[10px] font-bold text-orange-400">Якоря: {coreCount} / {modeCore.length}</span>
-                                                    {day.cuttingTracker?.weightMorning && <span className="text-[10px] font-mono text-amber-400">Вес: {day.cuttingTracker.weightMorning} кг</span>}
-                                                    {day.cuttingTracker?.calories && <span className="text-[10px] font-mono text-neutral-400">{day.cuttingTracker.calories} ккал</span>}
+                                        <div key={idx} className="p-4 bg-[#0a0a0a] border border-[#262626] rounded-xl flex flex-col space-y-3 transition-all">
+                                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                                                <div className="space-y-1">
+                                                    <span className="text-sm font-mono font-bold text-white">{day.date}</span>
+                                                    <div className="flex gap-2 items-center flex-wrap">
+                                                        <span className="text-[10px] font-bold bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded uppercase">{day.currentMode || 'NORM'}</span>
+                                                        <span className="text-[10px] font-bold text-orange-400">Якоря: {day.coreCompleted || 0} / {day.coreTotal || 0}</span>
+                                                        {day.cuttingTracker?.weightMorning && <span className="text-[10px] font-mono text-amber-400">Вес: {day.cuttingTracker.weightMorning} кг</span>}
+                                                        {day.cuttingTracker?.calories && <span className="text-[10px] font-mono text-neutral-400">{day.cuttingTracker.calories} ккал</span>}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+                                                    <div className="sm:text-right">
+                                                        <span className="text-sm font-mono font-bold text-amber-400 block">{completed} / {total} ({pct}%)</span>
+                                                        <div className="w-28 h-1 bg-[#161616] rounded-full overflow-hidden mt-1 border border-[#262626]/20">
+                                                            <div className="h-full bg-amber-500" style={{ width: `${pct}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => setExpandedDay(isExpanded ? null : day.date)}
+                                                        className="px-3 py-1.5 rounded-lg bg-[#1c1c1c] border border-[#333] hover:text-amber-400 text-xs font-bold uppercase transition-colors"
+                                                    >
+                                                        {isExpanded ? 'Скрыть' : 'Детали'}
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="sm:text-right w-full sm:w-auto">
-                                                <span className="text-sm font-mono font-bold text-amber-400 block">{completed} / {total} ({pct}%)</span>
-                                                <div className="w-full sm:w-28 h-1 bg-[#161616] rounded-full overflow-hidden mt-1 border border-[#262626]/20">
-                                                    <div className="h-full bg-amber-500" style={{ width: `${pct}%` }}></div>
+
+                                            {isExpanded && (
+                                                <div className="pt-3 border-t border-[#262626] text-xs space-y-2 text-neutral-300 font-medium animate-in fade-in">
+                                                    {day.mainGoal?.title && (
+                                                        <p><span className="text-amber-400 font-bold uppercase">Главная задача:</span> {day.mainGoal.title} — {day.mainGoal.description || 'Без описания'}</p>
+                                                    )}
+                                                    {day.energyMetrics && (
+                                                        <p><span className="text-neutral-400 font-bold uppercase">Сон / Энергия / Готовность:</span> {day.energyMetrics.sleep || 0}ч // {day.energyMetrics.energy || 0}/10 // {day.energyMetrics.readiness || 0}/10</p>
+                                                    )}
+                                                    {day.taskTimestamps && Object.keys(day.taskTimestamps).length > 0 && (
+                                                        <div>
+                                                            <span className="text-neutral-400 font-bold uppercase block mb-1">Метки времени якорей:</span>
+                                                            <div className="flex flex-wrap gap-2 font-mono text-[10px]">
+                                                                {Object.entries(day.taskTimestamps).map(([tid, time]) => (
+                                                                    <span key={tid} className="bg-[#141414] px-2 py-0.5 border border-[#222] rounded text-neutral-300">
+                                                                        {TASK_LABELS[tid] || tid}: {time}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -1555,14 +1988,13 @@
 
         const ProgressView = ({ state, update }) => {
             const { xp, level, categories, returnRate } = state.stats;
-            
+            const [selectedWeek, setSelectedWeek] = useState(null);
+
             const currentLevelXpBase = Math.pow(level - 1, 2) * 100;
             const nextLevelXpBase = Math.pow(level, 2) * 100;
             const xpInCurrentLevel = xp - currentLevelXpBase;
             const xpRequiredForNextLevel = nextLevelXpBase - currentLevelXpBase;
             const progressPercent = xpRequiredForNextLevel > 0 ? Math.min(100, Math.max(0, (xpInCurrentLevel / xpRequiredForNextLevel) * 100)) : 0;
-
-            const [selectedWeek, setSelectedWeek] = useState(null);
 
             const currentAgeWeeks = useMemo(() => {
                 const birthDate = new Date(1997, 2, 14);
@@ -1577,11 +2009,11 @@
                 
                 let text = "";
                 if (index === currentAgeWeeks) {
-                    text = "Текущая неделя жизни. Ваша собранность сегодня определяет траекторию развития систем завтра.";
+                    text = "Текущая неделя вашей жизни. Ваша собранность сегодня определяет траекторию развития систем завтра.";
                 } else if (isPassed) {
-                    text = `${diff} нед. назад. Опыт усвоен и стал вашим прочным фундаментом.`;
+                    text = `${diff} нед. назад. Пройденный опыт усвоен и заложен в ваш фундаментальный пласт характера.`;
                 } else {
-                    text = `Через ${diff} нед. Достижение ваших больших целей формируется решениями прямо сейчас.`;
+                    text = `Через ${diff} нед. Достижение поставленных долгосрочных целей формируется решениями прямо сейчас.`;
                 }
                 setSelectedWeek({ weekNum, text });
             };
@@ -1600,6 +2032,7 @@
 
             return (
                 <div className="space-y-5 transform transition-all anonymity-fade animate-in fade-in zoom-in-95">
+                    <AccessBanner state={state} setState={update} />
                     <h1 className="text-2xl font-bold text-white uppercase">Индикаторы прогресса</h1>
                     <div className={`${THEME.panel}`}>
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
@@ -1642,7 +2075,7 @@
                         <div className="flex justify-between items-center mb-3">
                             <div>
                                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Модуль времени (Memento Mori)</h3>
-                                <p className="text-xs text-neutral-400">Прожитые и доступные недели жизни (из расчета 80 лет).</p>
+                                <p className="text-xs text-neutral-400">Прожитые и доступные недели жизни (из расчета 80 лет жизни).</p>
                             </div>
                             <span className="text-xs font-mono font-bold text-red-400 bg-red-500/10 px-2.5 py-1 rounded">Осталось: {4160 - currentAgeWeeks} нед</span>
                         </div>
@@ -1687,23 +2120,29 @@
 
         const ToolsExportView = ({ state, setState, showToast, update }) => {
             const [sunoInput, setSunoInput] = useState('');
+            const [oldPin, setOldPin] = useState('');
+            const [newPin, setNewPin] = useState('');
+            const [newPinConfirm, setNewPinConfirm] = useState('');
+            const [pinError, setPinError] = useState('');
+            const wBlock = !canWrite(state);
 
             const generateObsidianData = () => {
                 const m = state.energyMetrics, logs = state.taskTimestamps, cut = state.cuttingTracker;
                 return `# Лог дня Markov OS: ${new Date().toLocaleDateString('ru-RU')}\n\n` +
-                       `## Режим дня: ${state.currentMode}\n\n` +
-                       `## Главная задача: ${state.mainGoal.title} (${state.mainGoal.description})\n\n` +
-                       `## Состояние восстановления\n- Сон: ${m.sleep}ч\n- Энергия: ${m.energy}/10\n- Индекс готовности: ${m.readiness}/10\n\n` +
-                       `## Сушка сегодня\n- Вес: ${cut.weightMorning || '—'} кг\n- Калории: ${cut.calories || '—'} ккал\n- Белок: ${cut.protein || '—'} г\n- Вода: ${cut.water || '—'} л\n- Кардио: ${cut.cardioMinutes || '—'} мин\n\n` +
-                       `## Тайминги ключевых якорей\n` +
-                       `- [${logs.waterAm || '—'}] Вода после сна\n` +
-                       `- [${logs.breakfast || '—'}] Сбалансированный завтрак\n` +
-                       `- [${logs.mainTask || '—'}] Главная задача\n` +
-                       `- [${logs.pm || '—'}] PM сессия\n` +
-                       `- [${logs.body || '—'}] Силовая тренировка в «Стимуле»\n` +
-                       `- [${logs.cardio || '—'}] Вечернее кардио\n` +
-                       `- [${logs.sleep || '—'}] Сон\n\n` +
-                       `## Зафиксированные инсайты обучения\n${state.notes.savedDaily.join('\n') || 'Нет записей для буфера.'}`;
+                        `## Сегодня\n- День недели: ${formatDayName(new Date())}\n- Дата: ${formatFullDate(new Date())}\n- Режим дня: ${state.currentMode}\n- Задач выполнено: ${Object.values(state.dailyTasks).filter(Boolean).length} из ${Object.keys(state.dailyTasks).length}\n\n` +
+                        `## Главная задача\n- Название: ${state.mainGoal.title}\n- Описание: ${state.mainGoal.description}\n- Выполнено: ${state.dailyTasks.mainTask ? 'Да' : 'Нет'}\n\n` +
+                        `## Распорядок дня\n- 10:30 Проснулся → Вода\n- 11:00 Завтрак → Языковые спринты\n- 16:00 Старт рабочей смены в «Стимуле»\n- В процессе работы → Силовая сессия\n- 22:50 Дома → Жиросжигающее кардио\n- 01:00 Сон и выключение систем\n` +
+                        `## Состояние восстановления\n- Сон: ${m.sleep}ч\n- Энергия: ${m.energy}/10\n- Индекс готовности: ${m.readiness}/10\n\n` +
+                        `## Сушка сегодня\n- Вес: ${cut.weightMorning || '—'} кг\n- Калории: ${cut.calories || '—'} ккал\n- Белок: ${cut.protein || '—'} г\n- Вода: ${cut.water || '—'} л\n- Кардио: ${cut.cardioMinutes || '—'} мин\n\n` +
+                        `## Тайминги ключевых якорей\n` +
+                        `- [${logs.waterAm || '—'}] Вода после сна\n` +
+                        `- [${logs.breakfast || '—'}] Сбалансированный завтрак\n` +
+                        `- [${logs.mainTask || '—'}] Главная задача\n` +
+                        `- [${logs.pm || '—'}] PM сессия\n` +
+                        `- [${logs.body || '—'}] Силовая тренировка в «Стимуле»\n` +
+                        `- [${logs.cardio || '—'}] Вечернее кардио\n` +
+                        `- [${logs.sleep || '—'}] Сон\n\n` +
+                        `## Зафиксированные инсайты обучения\n${state.notes.savedDaily.join('\n') || 'Нет записей для буфера.'}`;
             };
 
             const runCopy = () => {
@@ -1711,7 +2150,7 @@
                     if (navigator.clipboard && window.isSecureContext) {
                         navigator.clipboard.writeText(generateObsidianData()).then(() => showToast("Лог скопирован для Obsidian. ✨"));
                     } else {
-                        showToast("Копирование ограничено браузером. Скачайте файл .md.");
+                        showToast("Копирование ограничено. Скачайте файл .md.");
                     }
                 } catch(e) { showToast("Сбой копирования."); }
             };
@@ -1725,11 +2164,12 @@
                     document.body.appendChild(anchor);
                     anchor.click();
                     anchor.remove();
-                    showToast("Файл .md успешно сгенерирован.");
+                    showToast("Файл .md сгенерирован.");
                 } catch(e) { showToast("Сбой скачивания Markdown."); }
             };
 
             const runBackupExport = () => {
+                if (wBlock) { showToast("Доступно только владельцу."); return; }
                 try {
                     const exportPackage = {
                         app: "Markov OS", exportedAt: new Date().toISOString(), schemaVersion: SCHEMA_VERSION, data: state
@@ -1741,11 +2181,12 @@
                     document.body.appendChild(anchor);
                     anchor.click();
                     anchor.remove();
-                    showToast("Архив системы успешно экспортирован.");
+                    showToast("Архив экспортирован.");
                 } catch(e) { showToast("Сбой экспорта."); }
             };
 
             const runBackupImport = (e) => {
+                if (wBlock) { showToast("Доступно только владельцу."); return; }
                 if (e.target.files.length === 0) return;
                 const reader = new FileReader();
                 reader.readAsText(e.target.files[0], "UTF-8");
@@ -1755,70 +2196,121 @@
                         const sourceData = (parsed && parsed.app === "Markov OS" && parsed.data) ? parsed.data : parsed;
 
                         if (!sourceData || !sourceData.dailyTasks || !sourceData.stats) {
-                            showToast("Файл не соответствует структуре Markov OS.");
+                            showToast("Файл не соответствует Markov OS.");
                             return;
                         }
-                        try { localStorage.setItem(`${STORAGE_KEY}_pre_import_${Date.now()}`, JSON.stringify(state)); } catch(err) {}
 
                         const mergedState = migrateState(sourceData);
+                        mergedState.access.mode = ACCESS_MODES.LOCKED;
                         setState(mergedState);
-                        showToast("Бекап успешно восстановлен.");
-                    } catch (err) { showToast("Не удалось прочитать файл JSON."); }
+                        showToast("Бекап восстановлен. Требуется PIN.");
+                    } catch (err) { showToast("Не удалось прочитать JSON."); }
                     e.target.value = '';
                 };
             };
 
+            const handleChangePin = async (e) => {
+                e.preventDefault();
+                if (wBlock) return;
+                if (!oldPin || !newPin || !newPinConfirm) { setPinError('Заполните все поля.'); return; }
+                if (newPin.length < 4) { setPinError('Новый PIN должен быть не менее 4 цифр.'); return; }
+                if (newPin !== newPinConfirm) { setPinError('Новые PIN-коды не совпадают.'); return; }
+
+                const oldHash = await hashText(oldPin);
+                if (oldHash !== state.access.ownerPinHash) {
+                    setPinError('Текущий PIN указан неверно.');
+                    return;
+                }
+
+                const newHash = await hashText(newPin);
+                update('access', { ownerPinHash: newHash });
+                setOldPin('');
+                setNewPin('');
+                setNewPinConfirm('');
+                setPinError('');
+                showToast('PIN-код Суверена изменен.');
+            };
+
             return (
                 <div className="space-y-5 transform transition-all anonymity-fade animate-in fade-in zoom-in-95">
+                    <AccessBanner state={state} setState={update} />
                     <h1 className="text-2xl font-bold text-white uppercase">Конфигурация Системы</h1>
 
-                    {/* Настройка главной задачи */}
                     <div className={`${THEME.panel} space-y-4`}>
                         <h2 className="text-base font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Target" className="text-amber-500" size={14}/> <span>Конструктор главной задачи</span></h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Название задачи</label>
-                                <input type="text" value={state.mainGoal.title} onChange={e => update('mainGoal', { title: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white font-bold focus:outline-none focus:border-amber-500/50" />
+                                <input type="text" disabled={wBlock} value={state.mainGoal.title} onChange={e => update('mainGoal', { title: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white font-bold focus:outline-none focus:border-amber-500/50 disabled:opacity-60" />
                             </div>
                             <div>
                                 <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Краткое описание / Смысл</label>
-                                <input type="text" value={state.mainGoal.description} onChange={e => update('mainGoal', { description: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white font-bold focus:outline-none focus:border-amber-500/50" />
+                                <input type="text" disabled={wBlock} value={state.mainGoal.description} onChange={e => update('mainGoal', { description: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white font-bold focus:outline-none focus:border-amber-500/50 disabled:opacity-60" />
                             </div>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-[#262626] rounded-xl flex-wrap gap-3">
                             <label className="flex items-center gap-2 text-xs font-bold uppercase text-neutral-300 cursor-pointer">
-                                <input type="checkbox" checked={state.mainGoal.active} onChange={e => update('mainGoal', { active: e.target.checked })} className="w-4 h-4 accent-amber-500" />
-                                <span>Задача активна и обязательна в расписании (11:45)</span>
+                                <input type="checkbox" disabled={wBlock} checked={state.mainGoal.active} onChange={e => update('mainGoal', { active: e.target.checked })} className="w-4 h-4 accent-amber-500 disabled:opacity-50" />
+                                <span>Задача обязательна в расписании (11:45)</span>
                             </label>
                             <div className="w-full sm:w-48">
-                                <NumericInput label="Лимит времени (мин)" min={15} max={60} step={5} value={state.mainGoal.timeLimitMinutes} onChange={v => update('mainGoal', { timeLimitMinutes: v })} />
+                                <NumericInput label="Лимит времени (мин)" readOnly={wBlock} min={15} max={60} step={5} value={state.mainGoal.timeLimitMinutes} onChange={v => update('mainGoal', { timeLimitMinutes: v })} />
                             </div>
                         </div>
                     </div>
 
                     <div className={`${THEME.panel} space-y-4`}>
-                        <h2 className="text-base font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Settings" className="text-amber-500" size={14}/> <span>Интерфейс и локальные пресеты</span></h2>
+                        <h2 className="text-base font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Shield" className="text-amber-500" size={14}/> <span>Контроль безопасности и сессии</span></h2>
+                        {wBlock ? (
+                            <p className="text-xs text-neutral-400 font-medium">Настройки административного доступа скрыты. Режим: Наблюдатель.</p>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-neutral-300 font-medium">
+                                    <div className="p-3 bg-[#0a0a0a] border border-[#262626] rounded-xl space-y-1">
+                                        <span className="text-neutral-500 uppercase block font-bold text-[9px]">Статус сессии</span>
+                                        <p>Права авторизации: <span className="text-amber-400 font-bold">Владелец</span></p>
+                                        <p>Кликов заблокировано: <span className="text-mono text-neutral-400 font-bold">{state.access.guestClicks}</span></p>
+                                    </div>
+                                    <div className="w-full">
+                                        <NumericInput label="Автоблокировка (минут)" readOnly={wBlock} min={5} max={240} step={5} value={state.settings.autoLockMinutes} onChange={v => update('settings', { autoLockMinutes: v })} />
+                                    </div>
+                                </div>
+                                <form onSubmit={handleChangePin} className="p-4 bg-[#0a0a0a] border border-[#262626] rounded-xl space-y-3">
+                                    <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide block">Смена секретного PIN-кода</span>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <input type="password" inputMode="numeric" placeholder="Старый PIN" value={oldPin} onChange={e => setOldPin(e.target.value)} className="bg-[#121212] border border-[#262626] rounded-xl p-2.5 text-center text-sm font-mono text-white focus:outline-none focus:border-amber-500" />
+                                        <input type="password" inputMode="numeric" placeholder="Новый PIN (мин. 4)" value={newPin} onChange={e => setNewPin(e.target.value)} className="bg-[#121212] border border-[#262626] rounded-xl p-2.5 text-center text-sm font-mono text-white focus:outline-none focus:border-amber-500" />
+                                        <input type="password" inputMode="numeric" placeholder="Повтор нового" value={newPinConfirm} onChange={e => setNewPinConfirm(e.target.value)} className="bg-[#121212] border border-[#262626] rounded-xl p-2.5 text-center text-sm font-mono text-white focus:outline-none focus:border-amber-500" />
+                                    </div>
+                                    {pinError && <p className="text-xs font-bold text-red-400 uppercase tracking-wide">{pinError}</p>}
+                                    <button type="submit" className="px-4 py-2 bg-[#1c1c1c] border border-[#333] text-amber-500 font-bold hover:bg-[#222] rounded-xl text-xs uppercase min-h-[38px]">Обновить PIN-код</button>
+                                </form>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className={`${THEME.panel} space-y-4`}>
+                        <h2 className="text-base font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Settings" className="text-amber-500" size={14}/> <span>Интерфейс и пресеты</span></h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-bold uppercase text-neutral-300">
                             <label className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-[#262626] rounded-xl min-h-[44px]">
-                                <span>Рациональный режим подписей (Evidence)</span>
-                                <input type="checkbox" checked={state.settings.evidenceMode} onChange={e => update('settings', { evidenceMode: e.target.checked })} className="w-4 h-4 accent-amber-500" />
+                                <span>Рациональный вид подписей (Evidence)</span>
+                                <input type="checkbox" disabled={wBlock} checked={state.settings.evidenceMode} onChange={e => update('settings', { evidenceMode: e.target.checked })} className="w-4 h-4 accent-amber-500" />
                             </label>
                             <label className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-[#262626] rounded-xl min-h-[44px]">
                                 <span>Компактный вид (Только базовые блоки)</span>
-                                <input type="checkbox" checked={state.settings.compactMode} onChange={e => update('settings', { compactMode: e.target.checked })} className="w-4 h-4 accent-amber-500" />
+                                <input type="checkbox" disabled={wBlock} checked={state.settings.compactMode} onChange={e => update('settings', { compactMode: e.target.checked })} className="w-4 h-4 accent-amber-500" />
                             </label>
                             <label className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-[#262626] rounded-xl min-h-[44px]">
                                 <span>Звуковые эффекты кликов и таймера</span>
-                                <input type="checkbox" checked={state.settings.soundEnabled} onChange={e => update('settings', { soundEnabled: e.target.checked })} className="w-4 h-4 accent-amber-500" />
+                                <input type="checkbox" disabled={wBlock} checked={state.settings.soundEnabled} onChange={e => update('settings', { soundEnabled: e.target.checked })} className="w-4 h-4 accent-amber-500" />
                             </label>
                             <label className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-[#262626] rounded-xl min-h-[44px]">
                                 <span>Тактильный отклик (Вибрация)</span>
-                                <input type="checkbox" checked={state.settings.hapticsEnabled} onChange={e => update('settings', { hapticsEnabled: e.target.checked })} className="w-4 h-4 accent-amber-500" />
+                                <input type="checkbox" disabled={wBlock} checked={state.settings.hapticsEnabled} onChange={e => update('settings', { hapticsEnabled: e.target.checked })} className="w-4 h-4 accent-amber-500" />
                             </label>
                         </div>
                     </div>
 
-                    {/* Фиксированный неизменяемый блок вашего графика */}
                     <div className={`${THEME.panel} space-y-2`}>
                         <h2 className="text-base font-bold text-white flex items-center gap-2 uppercase"><IconBase iconName="Clock" className="text-amber-500" size={14}/> <span>Архитектура вашего графика дня</span></h2>
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs font-mono font-bold text-neutral-300">
@@ -1833,7 +2325,7 @@
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-base font-bold text-white flex items-center gap-2 mb-2 uppercase"><IconBase iconName="Download" className="text-amber-500" size={14}/> <span>Синхронизация Obsidian</span></h2>
-                            <p className="text-xs text-neutral-400 mb-3 font-medium">Экспорт структурированного текстового отчета дня в вашу локальную базу знаний.</p>
+                            <p className="text-xs text-neutral-400 mb-3 font-medium">Экспорт текстового отчета текущих суток в вашу локальную базу знаний.</p>
                             <div className="flex gap-2">
                                 <Button variant="primary" className="flex-1 text-xs" onClick={runCopy}>Копировать</Button>
                                 <Button variant="secondary" className="flex-1 text-xs" onClick={runDownloadMarkdown}>Скачать .md</Button>
@@ -1841,12 +2333,12 @@
                         </div>
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-base font-bold text-white flex items-center gap-2 mb-2 uppercase"><IconBase iconName="Settings" className="text-amber-500" size={14}/> <span>Резервное хранилище</span></h2>
-                            <p className="text-xs text-neutral-400 mb-3 font-medium">Полный экспорт или импорт всей истории дней, опыта и уровней в файл JSON.</p>
+                            <p className="text-xs text-neutral-400 mb-3 font-medium">Экспорт или импорт всей истории дней, опыта и уровней в файл JSON.</p>
                             <div className="flex gap-2">
                                 <Button variant="secondary" className="flex-1 text-xs" onClick={runBackupExport}>Экспорт бекапа</Button>
-                                <label className="flex-1 flex items-center justify-center px-4 py-2 bg-[#1c1c1c] border border-[#333] text-amber-500 font-bold hover:bg-[#262626] cursor-pointer text-xs uppercase rounded-xl min-h-[44px]">
+                                <label className="flex-1 flex items-center justify-center px-4 py-2 bg-[#1c1c1c] border border-[#333] text-amber-500 font-bold hover:bg-[#262626] cursor-pointer text-xs uppercase rounded-xl min-h-[44px] opacity-100">
                                     <span>Импорт</span>
-                                    <input type="file" accept=".json" onChange={runBackupImport} className="hidden" />
+                                    <input type="file" disabled={wBlock} accept=".json" onChange={runBackupImport} className="hidden" />
                                 </label>
                             </div>
                         </div>
@@ -1855,8 +2347,8 @@
                     <div className={`${THEME.panel}`}>
                         <h2 className="text-base font-bold text-white flex items-center gap-2 mb-3 uppercase"><IconBase iconName="Music" className="text-amber-400" size={14}/> <span>Творческий сейф идей SUNO</span></h2>
                         <div className="flex gap-2 mb-3">
-                            <input type="text" placeholder="Музыкальные концепты, идеи треков, текстовые наброски..." value={sunoInput} onChange={e => setSunoInput(e.target.value)} className="flex-1 bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500/40 font-medium" />
-                            <Button onClick={() => { if(sunoInput.trim()){ setState(p => ({...p, sunoIdeas: [...p.sunoIdeas, sunoInput]})); setSunoInput(''); showToast("Концепт сохранен."); }}}>Зафиксировать</Button>
+                            <input type="text" disabled={wBlock} placeholder="Музыкальные концепты, идеи треков, текстовые наброски..." value={sunoInput} onChange={e => setSunoInput(e.target.value)} className="flex-1 bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none focus:border-amber-500/40 font-medium disabled:opacity-60" />
+                            <Button onClick={() => { if(sunoInput.trim()){ setState(p => ({...p, sunoIdeas: [...p.sunoIdeas, sunoInput]})); setSunoInput(''); showToast("Концепт зафиксирован."); }}}>Зафиксировать</Button>
                         </div>
                         {state.sunoIdeas.length > 0 && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2 bg-[#0a0a0a] rounded-xl border border-[#222]">
@@ -1868,10 +2360,10 @@
                             </div>
                         )}
                         <div className="pt-4 mt-2 border-t border-red-950/40 flex justify-end">
-                            <button type="button" onClick={() => {
-                                const confirm = state.settings.confirmBeforeReset ? window.confirm("Вы действительно хотите обнулить Markov OS до заводского состояния?") : true;
+                            <button type="button" disabled={wBlock} onClick={() => {
+                                const confirm = state.settings.confirmBeforeReset ? window.confirm("Вы действительно хотите обнулить Markov OS?") : true;
                                 if(confirm) { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }
-                            }} className="text-red-400 font-bold uppercase text-[11px] hover:text-red-300 min-h-[32px]">Сбросить всю базу данных приложения</button>
+                            }} className="text-red-400 font-bold uppercase text-[11px] hover:text-red-300 min-h-[32px] disabled:opacity-30">Сбросить всю базу данных</button>
                         </div>
                     </div>
                 </div>
@@ -1905,17 +2397,20 @@
             }, [state.circadianOverride]);
 
             const saveDailyNote = useCallback((text, source) => {
+                if (!canWrite(state)) { showToast('Гостевой режим: запись отклонена.'); return; }
                 const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
                 update('notes', { savedDaily: [...(state.notes.savedDaily || []), `[${time}] [${source}] ${text}`] });
                 showToast("Инсайт добавлен в отчет дня.");
             }, [state.notes.savedDaily, update, showToast]);
 
             const addLanguagePhrase = useCallback((p) => {
+                if (!canWrite(state)) { showToast('Гостевой режим: запись отклонена.'); return; }
                 update('languagePhrases', [...(state.languagePhrases || []), p]);
                 showToast("Связь зафиксирована.");
             }, [state.languagePhrases, update, showToast]);
 
             const handleAddQuickInsight = () => {
+                if (!canWrite(state)) { showToast('Гостевой режим: изменения не сохраняются.'); setInsightModalOpen(false); return; }
                 if (quickInsightText.trim()) {
                     saveDailyNote(quickInsightText, 'БЫСТРЫЙ-ИНСАЙТ');
                     setQuickInsightText('');
@@ -1931,12 +2426,12 @@
             const view = useMemo(() => {
                 switch (state.currentTab) {
                     case 'dashboard': return <DashboardView state={state} update={update} toggleTask={toggleTask} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} onCodeClick={toggleNumerology} />;
-                    case 'schedule': return <ScheduleView state={state} update={update} />;
-                    case 'learning': return <LearningView state={state} saveDailyNote={saveDailyNote} addLanguagePhrase={addLanguagePhrase} />;
+                    case 'schedule': return <ScheduleView state={state} update={update} toggleTask={toggleTask} />;
+                    case 'learning': return <LearningView state={state} saveDailyNote={saveDailyNote} addLanguagePhrase={addLanguagePhrase} update={update} />;
                     case 'body': return <BodyView state={state} update={update} toggleTask={toggleTask} />;
                     case 'content': return <ContentView state={state} update={update} saveDailyNote={saveDailyNote} />;
-                    case 'rituals': return <RitualsView state={state} toggleTask={toggleTask} onCodeClick={toggleNumerology} />;
-                    case 'history': return <HistoryView state={state} />;
+                    case 'rituals': return <RitualsView state={state} toggleTask={toggleTask} onCodeClick={toggleNumerology} update={update} />;
+                    case 'history': return <HistoryView state={state} update={update} />;
                     case 'progress': return <ProgressView state={state} update={update} />;
                     case 'tools': return <ToolsExportView state={state} setState={setState} showToast={showToast} update={update} />;
                     default: return <DashboardView state={state} update={update} toggleTask={toggleTask} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} onCodeClick={toggleNumerology} />;
@@ -1945,9 +2440,12 @@
 
             const isCompact = state.settings.compactMode;
 
+            if (state.access?.mode === ACCESS_MODES.LOCKED) {
+                return <LockScreen state={state} setState={setState} showToast={showToast} />;
+            }
+
             return (
                 <div className="min-h-screen bg-[#0a0a0a] text-neutral-200 flex flex-col lg:flex-row overflow-x-hidden antialiased relative w-full">
-                    {/* Глобальный тост уведомлений */}
                     <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] transition-all duration-300 ease-out pointer-events-none w-[90%] md:w-auto max-w-md ${toast.visible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}`}>
                         <div className="px-4 py-2.5 rounded-xl bg-[#161616] border border-amber-500/30 shadow-xl backdrop-blur-xl flex items-center gap-2 justify-center">
                             <IconBase iconName="Flame" className="text-amber-400" size={14} />
@@ -1955,7 +2453,6 @@
                         </div>
                     </div>
 
-                    {/* Кнопка быстрого инсайта */}
                     <div className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-40">
                         <button type="button" aria-label="Добавить быструю заметку" onClick={() => setInsightModalOpen(true)} className="w-12 h-12 rounded-full bg-amber-500 text-neutral-950 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all min-h-[44px] min-w-[44px]">
                             <IconBase iconName="Edit3" size={18} />
@@ -1993,7 +2490,6 @@
                         </div>
                     )}
 
-                    {/* Десктопный сайдбар */}
                     <aside className={`hidden lg:flex flex-col w-[270px] bg-[#0c0c0c] border-r border-[#262626]/40 p-5 h-screen sticky top-0 z-30 transition-all duration-300 ${state.deepFocusActive ? 'opacity-0 -translate-x-[270px] pointer-events-none' : 'opacity-100'}`}>
                         <div className="mb-4">
                             <h1 className="text-2xl font-black tracking-wider text-white uppercase">Markov<span className="text-amber-500">OS</span></h1>
@@ -2010,7 +2506,6 @@
                             <span className="font-mono bg-neutral-800 text-amber-400 px-1.5 py-0.5 rounded font-black">{computedCircadianPhase}</span>
                         </div>
 
-                        {/* Блок книги на боковой панели */}
                         {!isCompact && (
                             <div className="p-4 rounded-xl bg-[#121212] border border-[#262626] mb-4">
                                 <div className="flex justify-between items-start">
@@ -2023,8 +2518,8 @@
                                 <div className="flex justify-between items-center mt-3 pt-2 border-t border-[#222] text-xs text-neutral-400 font-bold">
                                     <span>{state.bookProgress?.totalPages || 15} / 77 стр</span>
                                     <div className="flex bg-[#0a0a0a] rounded-lg p-0.5 border border-[#222]">
-                                        <button type="button" onClick={() => update('bookProgress', { totalPages: Math.max(0, (state.bookProgress?.totalPages || 0) - 1) })} className="px-1.5 py-0.5 text-neutral-300 font-mono text-xs hover:text-white">-</button>
-                                        <button type="button" onClick={() => update('bookProgress', { totalPages: Math.min(77, (state.bookProgress?.totalPages || 0) + 1) })} className="px-1.5 py-0.5 text-amber-400 font-mono text-xs hover:text-white">+</button>
+                                        <button type="button" disabled={!canWrite(state)} onClick={() => update('bookProgress', { totalPages: Math.max(0, (state.bookProgress?.totalPages || 0) - 1) })} className="px-1.5 py-0.5 text-neutral-300 font-mono text-xs hover:text-white">-</button>
+                                        <button type="button" disabled={!canWrite(state)} onClick={() => update('bookProgress', { totalPages: Math.min(77, (state.bookProgress?.totalPages || 0) + 1) })} className="px-1.5 py-0.5 text-amber-400 font-mono text-xs hover:text-white">+</button>
                                     </div>
                                 </div>
                             </div>
@@ -2049,12 +2544,10 @@
                         </nav>
                     </aside>
 
-                    {/* Главная рабочая зона */}
                     <main className="flex-1 p-4 md:p-6 lg:p-8 w-full min-h-screen relative z-10 pb-32 lg:pb-8 overflow-y-auto">
                         <div className="max-w-[1000px] mx-auto w-full">{view}</div>
                     </main>
 
-                    {/* Мобильная нижняя навигация */}
                     <nav className={`lg:hidden fixed bottom-0 left-0 right-0 bg-[#0d0d0d]/95 backdrop-blur-xl border-t border-[#262626]/80 flex overflow-x-auto hide-scrollbar z-30 py-1.5 transition-all duration-300 ${state.deepFocusActive ? 'translate-y-24 opacity-0' : 'translate-y-0 opacity-100'}`} aria-label="Мобильное меню навигации">
                         {TABS.map(tab => {
                             const active = state.currentTab === tab.id;
@@ -2076,7 +2569,6 @@
             );
         }
 
-        // Защитная проверка сборки
         setTimeout(() => {
             const root = document.getElementById('root');
             if ((!window.React || !window.ReactDOM) && root) {
