@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Markov OS - System Elite v15</title>
+    <title>Markov OS - System Elite v16</title>
     
     <!-- Фиксированные версии CDN зависимостей -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -99,7 +99,7 @@
     <div id="root">
         <div id="fallback-loader" style="background: #0a0a0a; color: #a3a3a3; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: sans-serif;">
             <p style="font-weight: bold; color: #fff; margin-bottom: 8px; letter-spacing: 0.1em;">MARKOV OS IS LOADING</p>
-            <p style="font-size: 12px;">Если загрузка зависла, убедитесь в наличии подключения к CDN-ресурсам.</p>
+            <p style="font-size: 12px;">Если загрузка зависла, убедитесь в наличии подключения к CDN-ресурсам или проверьте интернет.</p>
         </div>
     </div>
 
@@ -107,7 +107,7 @@
         const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
         const STORAGE_KEY = 'markov_os_v15_hyper_elite_final_v2';
-        const SCHEMA_VERSION = '1.4.0';
+        const SCHEMA_VERSION = '1.6.0';
         
         const VALID_TABS = ['dashboard', 'schedule', 'learning', 'body', 'content', 'rituals', 'history', 'progress', 'tools'];
         const VALID_MODES = ['MAX', 'NORM', 'MIN', 'RECOVERY', 'SATURDAY', 'SUNDAY'];
@@ -250,10 +250,10 @@
                 { time: '13:45', anchor: 'После PM', title: 'Английский язык', taskIds: ['english'], note: 'Практика речи и разбор материалов до 30 минут.' },
                 { time: '14:20', anchor: 'После учебы', title: 'Еда и сборы', taskIds: [], note: 'Буферное время для подготовки и обеда.' },
                 { time: '15:20', anchor: 'Перед работой', title: 'Дорога на работу', taskIds: [], note: 'Спокойный переход к рабочему блоку.' },
-                { time: '16:00', anchor: 'Начало работы', title: 'Старт рабочей смены', taskIds: ['workStart'], note: 'Включение в рабочие процессы в ' + cfg.workPlaceLabel + '.' },
+                { time: cfg.workStartTime, anchor: 'Начало работы', title: 'Старт рабочей смены', taskIds: ['workStart'], note: 'Включение в рабочие процессы в ' + cfg.workPlaceLabel + '.' },
                 { time: 'В процессе', anchor: 'Перерыв', title: cfg.workoutLabel, taskIds: ['body'], note: 'Интенсивная тренировка встроена в график дня.' },
                 { time: '19:00', anchor: 'Рабочий перерыв', title: 'Приём пищи на работе', taskIds: ['workMeal'], note: 'Плановое питание по расписанию.' },
-                { time: '22:40', anchor: 'Приехал домой', title: 'Приехал домой', taskIds: [], note: 'Завершение внешнего контура, чистая вода.' },
+                { time: cfg.homeArrivalTime, anchor: 'Приехал домой', title: 'Приехал домой', taskIds: [], note: 'Завершение внешнего контура, чистая вода.' },
                 { time: cfg.cardioTime, anchor: 'После прихода', title: 'Кардио сессия', taskIds: ['cardio'], note: cfg.cardioDuration + ' лёгкой ходьбы.' },
                 { time: '23:25', anchor: 'После кардио', title: 'Легкий ужин', taskIds: ['dinner'], note: 'Чистый белок и клетчатка для восстановления.' },
                 { time: '23:50', anchor: 'После ужина', title: 'Плановый отдых', taskIds: ['plannedProcrastination'], note: 'Разрешённая разгрузка ума без чувства вины.' },
@@ -489,6 +489,9 @@
                 displayName: 'Павел',
                 publicTitle: 'Markov OS',
                 publicSubtitle: 'Личная система дня',
+                guestHeroText: 'Детали скрыты, структура видна.',
+                guestMessage: 'Гостевой режим: личные данные скрыты.',
+                guestCtaText: 'Хочу такой же сайт',
                 workPlaceLabel: 'фитнес-клуб',
                 wakeTime: '10:30',
                 sleepTime: '01:00',
@@ -499,7 +502,7 @@
                 workoutLabel: 'Силовая тренировка (1 час)',
                 showStoicQuotes: true,
                 showGuestBreathing: true,
-                guestMessage: 'Гостевой режим: личные данные скрыты.'
+                showGuestTeaser: true
             },
             supplementPlan: {
                 evening: [
@@ -784,7 +787,7 @@
                         }));
                         showToast('Вход выполнен.');
                     } else {
-                        setError('Неверный PIN-код доступа.');
+                        setError('Неверный PIN.');
                         setPin('');
                     }
                 } catch (err) {
@@ -809,7 +812,7 @@
                 <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 antialiased">
                     <div className="w-full max-w-sm bg-[#121212] border border-[#262626] rounded-[2rem] p-6 md:p-8 shadow-2xl text-center space-y-6 animate-in zoom-in-95">
                         <div className="space-y-1">
-                            <h1 className="text-3xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle}<span className="text-amber-500">OS</span></h1>
+                            <h1 className="text-3xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle || 'Markov OS'}<span className="text-amber-500">OS</span></h1>
                             <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">{state.personalConfig.publicSubtitle}</p>
                         </div>
 
@@ -886,7 +889,7 @@
                                 <span className="text-xs font-mono text-neutral-500 font-bold normal-case">({formatFullDate(now)})</span>
                             </h1>
                             <p className="text-xs font-medium text-neutral-400 mt-1 uppercase tracking-wider">
-                                Сценарий нагрузки: <span className="text-amber-400 font-bold">{MODES[state.currentMode]?.label || state.currentMode}</span>
+                                Режим дня: <span className="text-amber-400 font-bold">{MODES[state.currentMode]?.label || state.currentMode}</span>
                             </p>
                         </div>
                         <div className="text-4xl font-mono font-black text-amber-400 select-none tracking-normal">
@@ -894,7 +897,7 @@
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-[#262626]/60 text-xs font-medium">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-[#262626]/40 text-xs font-medium">
                         <div className="space-y-0.5">
                             <span className="text-neutral-500 block uppercase font-bold text-[10px]">Задачи за сутки</span>
                             <span className="text-neutral-200 font-mono font-bold text-sm">{dayAnalytics.completed} / {dayAnalytics.total}</span>
@@ -1285,7 +1288,7 @@
             const data = {
                 AM: {
                     title: "Утренний настрой",
-                    text: "Я возвращаю внимание к тому, чем управляю сегодня. Моя задача — действовать спокойно, точно и последовательно. Я выбираю структуру, движение по вектору и реальные шаги."
+                    text: "Я возвращаю attention к тому, чем управляю сегодня. Моя задача — действовать спокойно, точно и последовательно. Я выбираю структуру, движение по вектору и реальные шаги."
                 },
                 PM: {
                     title: "Вечерний настрой",
@@ -1828,7 +1831,7 @@
                                                 <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
                                                     <div className="sm:text-right">
                                                         <span className="text-sm font-mono font-bold text-amber-400 block">{completed} / {total} ({pct}%)</span>
-                                                        <div className="w-28 h-1 bg-[#161616] rounded-full overflow-hidden mt-1 border border border-[#262626]/20">
+                                                        <div className="w-28 h-1 bg-[#161616] rounded-full overflow-hidden mt-1 border border-[#262626]/20">
                                                             <div className="h-full bg-amber-500" style={{ width: `${pct}%` }}></div>
                                                         </div>
                                                     </div>
@@ -2085,7 +2088,6 @@
                             return;
                         }
 
-                        // Pre-import backup creation safely
                         try {
                             const currentRaw = localStorage.getItem(STORAGE_KEY);
                             if (currentRaw) localStorage.setItem(`${STORAGE_KEY}_pre_import_backup_${Date.now()}`, currentRaw);
@@ -2123,6 +2125,29 @@
                     showToast('PIN изменен.');
                 } catch (err) {
                     setPinError('Криптография недоступна в данном окружении.');
+                }
+            };
+
+            const runDangerReset = () => {
+                if (!canWrite(state)) {
+                    showToast("Доступно только владельцу.");
+                    return;
+                }
+                const confirmed = state.settings.confirmBeforeReset
+                    ? window.confirm("Сбросить локальные данные? Перед сбросом будет создан аварийный backup.")
+                    : true;
+                if (!confirmed) return;
+
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (raw) {
+                        localStorage.setItem(`${STORAGE_KEY}_manual_reset_backup_${Date.now()}`, raw);
+                    }
+                    localStorage.removeItem(STORAGE_KEY);
+                    window.location.reload();
+                } catch (e) {
+                    console.error("Manual reset failed:", e);
+                    showToast("Сбой сброса. Данные не удалены.");
                 }
             };
 
@@ -2267,7 +2292,7 @@
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className={`${THEME.panel}`}>
                             <h2 className="text-base font-bold text-white flex items-center gap-2 mb-2 uppercase"><IconBase iconName="Download" className="text-amber-500" size={14}/> <span>Синхронизация Obsidian</span></h2>
                             <p className="text-xs text-neutral-400 mb-3 font-medium">Экспорт суточного дайджеста в локальную markdown-базу знаний.</p>
@@ -2304,11 +2329,9 @@
                                 ))}
                             </div>
                         )}
-                        <div className="pt-4 mt-2 border-t border-red-950/40 flex justify-end">
-                            <button type="button" disabled={wBlock} onClick={() => {
-                                const confirm = state.settings.confirmBeforeReset ? window.confirm("Вы действительно хотите полностью сбросить локальную базу данных?") : true;
-                                if(confirm) { localStorage.removeItem(STORAGE_KEY); window.location.reload(); }
-                            }} className="text-red-400 font-bold uppercase text-[11px] hover:text-red-300 min-h-[32px] disabled:opacity-30">Обнулить данные Markov OS</button>
+                        <div className="pt-4 mt-2 border-t border-red-950/40 flex flex-col items-end gap-1">
+                            <button type="button" disabled={wBlock} onClick={runDangerReset} className="text-red-400 font-bold uppercase text-[11px] hover:text-red-300 min-h-[32px] disabled:opacity-30">Сбросить локальные данные</button>
+                            <span className="text-[10px] text-neutral-600 font-medium">Перед сбросом будет создан backup в localStorage.</span>
                         </div>
                     </div>
                 </div>
@@ -2339,28 +2362,38 @@
                 }));
             };
 
+            const handleCtaClick = () => {
+                showToast("Идея проста: один HTML-файл, личная система, приватный доступ.");
+            };
+
             const cards = [
-                { title: 'Закрытый личный раздел', text: 'Персональные данные скрыты.', icon: 'Clock' },
-                { title: 'История', text: 'Прогресс доступен только владельцу.', icon: 'History' },
-                { title: 'Личные трекеры', text: 'Данные владельца недоступны.', icon: 'Dumbbell' },
-                { title: 'Цели и заметки', text: 'Рабочие цели скрыты.', icon: 'BookOpen' },
-                { title: 'Настройки', text: 'Изменения доступны только после входа.', icon: 'Settings' }
+                { title: 'Распорядок дня', text: 'Структура видна, детали под замком. Тут живёт персональный план владельца.', icon: 'Clock' },
+                { title: 'Задачи и фокус', text: 'Главные действия, таймеры и прогресс скрыты. Без PIN — только витрина.', icon: 'Target' },
+                { title: 'История прогресса', text: 'Что сделано, когда сделано и как часто — доступно только владельцу.', icon: 'History' },
+                { title: 'Личные трекеры', text: 'Данные, цифры и привычки не показываются гостям. Конфиденциальность включена.', icon: 'Dumbbell' },
+                { title: 'Настройки системы', text: 'Владелец может менять сайт без кода. Гости могут только завидовать.', icon: 'Settings' },
+                { title: 'Экспорт и backup', text: 'Данные можно сохранить и перенести. Но не в гостевом режиме.', icon: 'Download' }
             ];
 
             return (
                 <div className="min-h-screen bg-[#0a0a0a] text-neutral-100 p-4 md:p-8 pb-24 antialiased flex flex-col justify-between">
                     <div className="max-w-[760px] mx-auto w-full space-y-6 pt-4">
                         <div className="text-center space-y-2 border-b border-[#262626]/40 pb-5">
-                            <h1 className="text-3xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle}<span className="text-amber-500">OS</span></h1>
+                            <h1 className="text-3xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle || "Markov OS"}<span className="text-amber-500">OS</span></h1>
                             <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest bg-neutral-900 inline-block px-3 py-1 rounded-full border border-[#222]">Гостевая демонстрационная сессия</p>
                             <p className="text-sm text-neutral-400 max-w-md mx-auto pt-2 leading-relaxed font-medium">{state.personalConfig.guestMessage}</p>
+                            
+                            <div className="flex justify-center gap-3 pt-4">
+                                <button type="button" onClick={lockSite} className="px-4 py-2 bg-amber-500 text-neutral-950 font-bold text-xs uppercase rounded-xl">Войти по PIN</button>
+                                <button type="button" onClick={() => { const el = document.getElementById('public-breath-section'); if(el) el.scrollIntoView({behavior: 'smooth'}); }} className="px-4 py-2 bg-[#1c1c1c] border border-[#333] font-bold text-xs uppercase rounded-xl">Посмотреть дыхание</button>
+                            </div>
                         </div>
 
                         {state.personalConfig.showGuestBreathing ? (
-                            <div className="space-y-3 bg-[#121212]/40 border border-[#262626]/40 p-4 rounded-2xl">
+                            <div id="public-breath-section" className="space-y-3 bg-[#121212]/40 border border-[#262626]/40 p-4 rounded-2xl">
                                 <div className="px-1">
-                                    <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-200">Публичный инструментарий</h2>
-                                    <p className="text-xs text-neutral-500 font-medium">Дыхательные таймеры сонастройки работают изолированно внутри сессии и не перезаписывают данные владельца.</p>
+                                    <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-200">Дыхание без входа</h2>
+                                    <p className="text-xs text-neutral-500 font-medium">Можно попробовать. Это не влияет на данные владельца и работает локально в сессии.</p>
                                 </div>
                                 <div className="space-y-2">
                                     <BreathingTimer type="morning" state={state} publicMode={true} />
@@ -2381,6 +2414,25 @@
                                 ))}
                             </div>
                         </div>
+
+                        {state.personalConfig.showGuestTeaser && (
+                            <div className="p-5 rounded-2xl border border-[#262626] bg-gradient-to-br from-amber-500/5 to-transparent space-y-3 text-center sm:text-left">
+                                <h3 className="text-base font-bold text-white uppercase">Зачем такой сайт?</h3>
+                                <p className="text-xs text-neutral-400 leading-relaxed font-medium">Это не просто чеклист. Это личная панель управления днём: режим, задачи, фокус, привычки, история и backup. В гостевом режиме видна только оболочка — личные данные скрыты.</p>
+                                <div className="flex flex-wrap gap-2 justify-center sm:justify-start pt-1 font-mono text-[9px] font-bold text-neutral-400">
+                                    <span className="bg-neutral-900 border border-neutral-800 px-2 py-1 rounded"># Свой распорядок</span>
+                                    <span className="bg-neutral-900 border border-neutral-800 px-2 py-1 rounded"># Свои задачи</span>
+                                    <span className="bg-neutral-900 border border-neutral-800 px-2 py-1 rounded"># Своя история</span>
+                                    <span className="bg-neutral-900 border border-neutral-800 px-2 py-1 rounded"># Свой доступ</span>
+                                    <span className="bg-neutral-900 border border-neutral-800 px-2 py-1 rounded"># Один HTML-файл</span>
+                                </div>
+                                <div className="pt-2">
+                                    <button type="button" onClick={handleCtaClick} className="px-4 py-2 bg-[#1c1c1c] border border-amber-500/20 text-amber-400 font-bold text-xs uppercase rounded-xl hover:bg-[#222]">
+                                        {state.personalConfig.guestCtaText || 'Хочу такой же сайт'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="max-w-[340px] mx-auto w-full pt-8 pb-4">
@@ -2455,8 +2507,8 @@
                 <div className="min-h-screen bg-[#0a0a0a] text-neutral-200 flex flex-col lg:flex-row overflow-x-hidden antialiased relative w-full">
                     <aside className={`hidden lg:flex flex-col w-[270px] bg-[#0c0c0c] border-r border-[#262626]/40 p-5 h-screen sticky top-0 z-30 transition-all duration-300 ${state.deepFocusActive ? 'opacity-0 -translate-x-[270px] pointer-events-none' : 'opacity-100'}`}>
                         <div className="mb-4">
-                            <h1 className="text-2xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle}<span className="text-amber-500">OS</span></h1>
-                            <p className="text-[9px] text-neutral-400 font-bold tracking-widest uppercase flex items-center gap-1">Elite v15 Final <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span></p>
+                            <h1 className="text-2xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle || 'Markov OS'}<span className="text-amber-500">OS</span></h1>
+                            <p className="text-[9px] text-neutral-400 font-bold tracking-widest uppercase flex items-center gap-1">Elite v16 Final <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span></p>
                         </div>
 
                         <div className="w-full text-left mb-4 p-3 rounded-xl bg-[#141414] border border-[#262626]">
@@ -2677,7 +2729,7 @@
                 });
                 
                 if (!options.silent) {
-                    showToast('Готово, изменения сохранены.');
+                    showToast('Сохранено.');
                 }
             }, [state.access?.mode, showToast]);
 
