@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Markov OS - System Elite v16</title>
+    <title>Markov OS - System Elite v17</title>
     
     <!-- Фиксированные версии CDN зависимостей -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -107,7 +107,8 @@
         const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
         const STORAGE_KEY = 'markov_os_v15_hyper_elite_final_v2';
-        const SCHEMA_VERSION = '1.6.0';
+        const SCHEMA_VERSION = '1.7.0';
+        const TELEGRAM_CTA_URL = 'https://t.me/markovmade';
         
         const VALID_TABS = ['dashboard', 'schedule', 'learning', 'body', 'content', 'rituals', 'history', 'progress', 'tools'];
         const VALID_MODES = ['MAX', 'NORM', 'MIN', 'RECOVERY', 'SATURDAY', 'SUNDAY'];
@@ -151,7 +152,7 @@
             plannedProcrastination: 'Плановый отдых',
             eveningHygiene: 'Вечерний уход',
             faceCare: 'Лицо',
-            nightSupplements: 'Добавки',
+            nightSupplements: 'Добавки на ночь',
             breathAm: 'Утреннее дыхание',
             breathPm: 'Вечернее дыхание',
             sleep: 'Сон',
@@ -172,7 +173,8 @@
                     { label: 'Выдох', seconds: 4 },
                     { label: 'Пауза', seconds: 4 }
                 ],
-                cycles: 4,
+                cycles: 12,
+                targetDurationLabel: '≈ 3:12',
                 tone: 'amber'
             },
             evening: {
@@ -184,12 +186,22 @@
                 phases: [
                     { label: 'Вдох', seconds: 4 },
                     { label: 'Пауза', seconds: 7 },
-                    { label: 'Выдох', seconds: 8 }
+                    { label: 'Медленный выдох', seconds: 8 }
                 ],
-                cycles: 4,
+                cycles: 10,
+                targetDurationLabel: '≈ 3:10',
                 tone: 'blue'
             }
         };
+
+        const GUEST_LOCKED_MODULES = [
+            { title: 'Распорядок дня', text: 'Структура видна, детали под замком. Тут живёт персональный план владельца.', badge: 'LOCKED' },
+            { title: 'Задачи и фокус', text: 'Главные действия, таймеры и прогресс скрыты. Без PIN — только витрина.', badge: 'PRIVATE' },
+            { title: 'История прогресса', text: 'Что сделано, когда сделано и как часто — доступно только владельцу.', badge: 'OWNER' },
+            { title: 'Личные трекеры', text: 'Данные, цифры и привычки не показываются гостям. Конфиденциальность включена.', badge: 'HIDDEN' },
+            { title: 'Настройки системы', text: 'Владелец может менять сайт без кода. Гости могут только завидовать.', badge: 'ADMIN' },
+            { title: 'Backup и экспорт', text: 'Данные можно сохранить и перенести. Но не в гостевом режиме.', badge: 'SECURE' }
+        ];
 
         const getCoreTasksForMode = (mode, mainGoalActive = true) => {
             const base = [
@@ -246,20 +258,20 @@
                 { time: '10:45', anchor: 'После ухода', title: 'Лёгкая зарядка', taskIds: ['morningCharge'], note: '2–5 минут суставной разминки для тонуса.' },
                 { time: '11:00', anchor: 'Завтрак', title: 'Завтрак и языковые спринты', taskIds: ['breakfast', 'spanish', 'chinese'], note: 'Изучение языков за едой (до 15 мин на спринт).' },
                 { time: '11:45', anchor: 'После завтрака', title: 'Главная задача дня', taskIds: ['mainTask'], note: 'Фокусированная работа над вашим ключевым проектом.' },
-                { time: '12:45', anchor: 'После главной задачи', title: 'Project Management', taskIds: ['pm'], note: 'обучение и конспект.' },
+                { time: '12:45', anchor: 'После главной задачи', title: 'Project Management', taskIds: ['pm'], note: 'Обучение и конспект.' },
                 { time: '13:45', anchor: 'После PM', title: 'Английский язык', taskIds: ['english'], note: 'Практика речи и разбор материалов до 30 минут.' },
                 { time: '14:20', anchor: 'После учебы', title: 'Еда и сборы', taskIds: [], note: 'Буферное время для подготовки и обеда.' },
                 { time: '15:20', anchor: 'Перед работой', title: 'Дорога на работу', taskIds: [], note: 'Спокойный переход к рабочему блоку.' },
                 { time: cfg.workStartTime, anchor: 'Начало работы', title: 'Старт рабочей смены', taskIds: ['workStart'], note: 'Включение в рабочие процессы в ' + cfg.workPlaceLabel + '.' },
-                { time: 'В процессе', anchor: 'Перерыв', title: cfg.workoutLabel, taskIds: ['body'], note: 'Интенсивная тренировка встроена в график дня.' },
+                { time: 'В процессе', anchor: 'Перерыв', title: cfg.workoutLabel, taskIds: ['body'], note: 'Тренировка во время рабочего дня.' },
                 { time: '19:00', anchor: 'Рабочий перерыв', title: 'Приём пищи на работе', taskIds: ['workMeal'], note: 'Плановое питание по расписанию.' },
                 { time: cfg.homeArrivalTime, anchor: 'Приехал домой', title: 'Приехал домой', taskIds: [], note: 'Завершение внешнего контура, чистая вода.' },
                 { time: cfg.cardioTime, anchor: 'После прихода', title: 'Кардио сессия', taskIds: ['cardio'], note: cfg.cardioDuration + ' лёгкой ходьбы.' },
-                { time: '23:25', anchor: 'После кардио', title: 'Легкий ужин', taskIds: ['dinner'], note: 'Чистый белок и клетчатка для восстановления.' },
+                { time: '23:25', anchor: 'После кардио', title: 'Легкий ужин', taskIds: ['dinner'], note: 'Белок + простая еда после кардио.' },
                 { time: '23:50', anchor: 'После ужина', title: 'Плановый отдых', taskIds: ['plannedProcrastination'], note: 'Разрешённая разгрузка ума без чувства вины.' },
                 { time: '00:15', anchor: 'Вечерний блок', title: 'Вечерний уход за собой', taskIds: ['eveningHygiene', 'faceCare'], note: 'Гигиена зубов, очищение лица, подготовка ко сну.' },
-                { time: '00:30', anchor: 'Перед сном', title: 'Ночные добавки', taskIds: ['nightSupplements'], note: 'Прием нутрицевтиков по вечернему плану.' },
-                { time: cfg.sleepTime, anchor: 'Конец дня', title: 'Сон', taskIds: ['sleep'], note: 'Своевременное выключение для глубокого восстановления.' }
+                { time: '00:30', anchor: 'Перед сном', title: 'Добавки на ночь', taskIds: ['nightSupplements'], note: 'Добавки по вечернему плану.' },
+                { time: cfg.sleepTime, anchor: 'Конец дня', title: 'Сон', taskIds: ['sleep'], note: 'Лечь спать без затягивания.' }
             ];
         };
 
@@ -488,10 +500,13 @@
             personalConfig: {
                 displayName: 'Павел',
                 publicTitle: 'Markov OS',
-                publicSubtitle: 'Личная система дня',
+                publicSubtitle: 'Персональная система дня',
                 guestHeroText: 'Детали скрыты, структура видна.',
                 guestMessage: 'Гостевой режим: личные данные скрыты.',
                 guestCtaText: 'Хочу такой же сайт',
+                guestCtaSubtext: 'Откроется Telegram.',
+                telegramCtaUrl: 'https://t.me/markovmade',
+                showGuestCta: true,
                 workPlaceLabel: 'фитнес-клуб',
                 wakeTime: '10:30',
                 sleepTime: '01:00',
@@ -584,6 +599,12 @@
             return d.toISOString().slice(0, 10);
         };
 
+        const getSafeTelegramUrl = (state) => {
+            const raw = String(state.personalConfig?.telegramCtaUrl || TELEGRAM_CTA_URL).trim();
+            if (!/^https?:\/\//i.test(raw)) return TELEGRAM_CTA_URL;
+            return raw;
+        };
+
         const buildDayArchive = (state) => {
             const allTasks = Object.keys(state.dailyTasks || {});
             const completed = Object.values(state.dailyTasks || {}).filter(Boolean).length;
@@ -657,7 +678,27 @@
 
             state.cuttingTracker = { ...state.cuttingTracker, ...(rawState.cuttingTracker || {}) };
             state.nutrition = { ...state.nutrition, ...(rawState.nutrition || {}) };
-            state.personalConfig = { ...state.personalConfig, ...(rawState.personalConfig || {}) };
+            
+            state.personalConfig = {
+                ...INITIAL_STATE.personalConfig,
+                ...(rawState.personalConfig || {})
+            };
+            
+            state.personalConfig.displayName = String(state.personalConfig.displayName || 'Павел');
+            state.personalConfig.publicTitle = String(state.personalConfig.publicTitle || 'Markov OS');
+            state.personalConfig.publicSubtitle = String(state.personalConfig.publicSubtitle || 'Персональная система дня');
+            state.personalConfig.guestHeroText = String(state.personalConfig.guestHeroText || 'Детали скрыты, структура видна.');
+            state.personalConfig.guestMessage = String(state.personalConfig.guestMessage || 'Гостевой режим: личные данные скрыты.');
+            state.personalConfig.guestCtaText = String(state.personalConfig.guestCtaText || 'Хочу такой же сайт');
+            state.personalConfig.guestCtaSubtext = String(state.personalConfig.guestCtaSubtext || 'Откроется Telegram.');
+            state.personalConfig.telegramCtaUrl = String(state.personalConfig.telegramCtaUrl || TELEGRAM_CTA_URL);
+            if (!/^https?:\/\//i.test(state.personalConfig.telegramCtaUrl)) {
+                state.personalConfig.telegramCtaUrl = TELEGRAM_CTA_URL;
+            }
+            state.personalConfig.showGuestBreathing = Boolean(state.personalConfig.showGuestBreathing);
+            state.personalConfig.showGuestTeaser = Boolean(state.personalConfig.showGuestTeaser);
+            state.personalConfig.showGuestCta = Boolean(state.personalConfig.showGuestCta);
+
             state.supplementPlan = { ...state.supplementPlan, ...(rawState.supplementPlan || {}) };
 
             state.taskTimestamps = { ...(rawState.taskTimestamps || {}) };
@@ -812,7 +853,7 @@
                 <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4 antialiased">
                     <div className="w-full max-w-sm bg-[#121212] border border-[#262626] rounded-[2rem] p-6 md:p-8 shadow-2xl text-center space-y-6 animate-in zoom-in-95">
                         <div className="space-y-1">
-                            <h1 className="text-3xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle || 'Markov OS'}<span className="text-amber-500">OS</span></h1>
+                            <h1 className="text-3xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle || 'Markov OS'}</h1>
                             <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest">{state.personalConfig.publicSubtitle}</p>
                         </div>
 
@@ -899,7 +940,7 @@
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-[#262626]/40 text-xs font-medium">
                         <div className="space-y-0.5">
-                            <span className="text-neutral-500 block uppercase font-bold text-[10px]">Задачи за сутки</span>
+                            <span className="text-neutral-500 block uppercase font-bold text-[10px]">Выполнение</span>
                             <span className="text-neutral-200 font-mono font-bold text-sm">{dayAnalytics.completed} / {dayAnalytics.total}</span>
                         </div>
                         <div className="space-y-0.5">
@@ -907,7 +948,7 @@
                             <span className="text-orange-400 font-mono font-bold text-sm">{dayAnalytics.coreCompleted} / {dayAnalytics.coreTotal}</span>
                         </div>
                         <div className="space-y-0.5">
-                            <span className="text-neutral-500 block uppercase font-bold text-[10px]">Выполнение</span>
+                            <span className="text-neutral-500 block uppercase font-bold text-[10px]">Выполнение %</span>
                             <span className="text-amber-400 font-mono font-bold text-sm">{dayAnalytics.percent}%</span>
                         </div>
                         <div className="space-y-0.5">
@@ -1119,7 +1160,7 @@
                         <div className="min-w-0">
                             <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
                                 <span className={`w-1.5 h-1.5 rounded-full ${preset.tone === 'blue' ? 'bg-blue-400' : 'bg-amber-400'}`}></span>
-                                {preset.title}
+                                {preset.title} <span className="text-xs font-mono opacity-40 font-normal">({preset.patternLabel} · {preset.targetDurationLabel})</span>
                             </h4>
                             <p className="text-xs text-neutral-400 truncate mt-0.5">
                                 {isRunning ? `${currentPhase.label}: ${secondsLeft} сек [${cycle}/${preset.cycles}]` : preset.description}
@@ -1140,7 +1181,7 @@
                 <div className="p-5 bg-[#0d0d0d] border border-[#262626] rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="space-y-1 text-center sm:text-left">
                         <h4 className="text-base font-bold text-white uppercase flex items-center justify-center sm:justify-start gap-2">
-                            {preset.title} <span className="text-xs font-mono font-normal normal-case opacity-50">({preset.patternLabel})</span>
+                            {preset.title} <span className="text-xs font-mono font-normal normal-case opacity-50">({preset.patternLabel} · {preset.targetDurationLabel})</span>
                         </h4>
                         <p className="text-sm text-neutral-400 max-w-sm">{preset.description}</p>
                     </div>
@@ -1288,7 +1329,7 @@
             const data = {
                 AM: {
                     title: "Утренний настрой",
-                    text: "Я возвращаю attention к тому, чем управляю сегодня. Моя задача — действовать спокойно, точно и последовательно. Я выбираю структуру, движение по вектору и реальные шаги."
+                    text: "Я возвращаю фокус к тому, чем управляю сегодня. Моя задача — действовать спокойно, точно и последовательно. Я выбираю структуру, движение по вектору и реальные шаги."
                 },
                 PM: {
                     title: "Вечерний настрой",
@@ -1394,7 +1435,7 @@
                         else if (taskId === 'plannedProcrastination') { labelText = "Разрешенный отдых"; }
                         else if (taskId === 'eveningHygiene') { labelText = "Вечерний уход"; }
                         else if (taskId === 'faceCare') { labelText = "Уход за лицом"; }
-                        else if (taskId === 'nightSupplements') { labelText = "Ночные добавки"; xp = 5; }
+                        else if (taskId === 'nightSupplements') { labelText = "Добавки на ночь"; xp = 5; }
                         else if (taskId === 'sleep') { labelText = "Сон"; xp = 5; }
                         else if (taskId === 'creativity') { labelText = "Музыка и Творчество"; cat = "content"; }
                         else if (taskId === 'weeklyPlanning') { labelText = "Планирование недели"; cat = "pm"; }
@@ -1489,7 +1530,7 @@
                             
                             {['NORM', 'MAX'].includes(state.currentMode) && (
                                 <div className="p-3.5 bg-[#0a0a0a] rounded-xl border border-[#1f1f1f] space-y-2">
-                                    <CheckItem id="pm" anchor="12:45" disabled={wBlock} checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', 15)} label="Project Management" subLabel="обучение и конспект." mode={state.currentMode} />
+                                    <CheckItem id="pm" anchor="12:45" disabled={wBlock} checked={state.dailyTasks.pm} timeLog={state.taskTimestamps.pm} onChange={() => toggleTask('pm', 'pm', 15)} label="Project Management" subLabel="Обучение и конспект." mode={state.currentMode} />
                                     {!state.dailyTasks.pm && <FocusTimer defaultMinutes={(MODES[state.currentMode]?.pmTime ?? 60)} taskName="PM Обучение" taskId="pm" category="pm" xpReward={15} onCompleteTask={toggleTask} state={state} update={update} setGlobalFocusId={setGlobalFocusId} globalFocusId={globalFocusId} readOnly={wBlock} />}
                                 </div>
                             )}
@@ -1518,7 +1559,7 @@
                         <div className="p-4 bg-[#121212] border border-[#262626] rounded-xl space-y-3">
                             <h4 className="text-xs font-bold text-amber-500 uppercase tracking-wider border-b border-[#222] pb-1">Вечерний контур и разгрузка</h4>
                             <CheckItem id="homeArrival" anchor={state.personalConfig.homeArrivalTime} disabled={wBlock} checked={state.dailyTasks.homeArrival} timeLog={state.taskTimestamps.homeArrival} onChange={() => toggleTask('homeArrival', 'spirit', 5)} label="Приехал домой" subLabel="Удаление фонового шума, переход к отдыху." mode={state.currentMode} />
-                            <CheckItem id="cardio" anchor={state.personalConfig.cardioTime} disabled={wBlock} checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио сессия" subLabel="лёгкая ходьба для поддержания дефицита калорий." mode={state.currentMode} />
+                            <CheckItem id="cardio" anchor={state.personalConfig.cardioTime} disabled={wBlock} checked={state.dailyTasks.cardio} timeLog={state.taskTimestamps.cardio} onChange={() => toggleTask('cardio', 'body', 15)} label="Кардио сессия" subLabel="Лёгкая ходьба для поддержания дефицита калорий." mode={state.currentMode} />
                             <CheckItem id="dinner" anchor="23:25" disabled={wBlock} checked={state.dailyTasks.dinner} timeLog={state.taskTimestamps.dinner} onChange={() => toggleTask('dinner', 'body', 10)} label="Легкий ужин" subLabel="Заключительный прием пищи (белок + клетчатка)." mode={state.currentMode} />
                             <CheckItem id="plannedProcrastination" anchor="23:50" disabled={wBlock} checked={state.dailyTasks.plannedProcrastination} timeLog={state.taskTimestamps.plannedProcrastination} onChange={() => toggleTask('plannedProcrastination', 'spirit', 5)} label="Плановый отдых" subLabel="Легитимное отключение от задач без чувства вины." mode={state.currentMode} />
                             <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#222]/50">
@@ -2133,9 +2174,7 @@
                     showToast("Доступно только владельцу.");
                     return;
                 }
-                const confirmed = state.settings.confirmBeforeReset
-                    ? window.confirm("Сбросить локальные данные? Перед сбросом будет создан аварийный backup.")
-                    : true;
+                const confirmed = window.confirm("Сбросить локальные данные? Перед сбросом будет создан аварийный backup.");
                 if (!confirmed) return;
 
                 try {
@@ -2153,24 +2192,24 @@
 
             return (
                 <div className="space-y-5 transform transition-all animate-in fade-in zoom-in-95">
-                    <h1 className="text-2xl font-bold text-white uppercase">Конфигурация системы</h1>
+                    <h1 className="text-2xl font-bold text-white uppercase">Система</h1>
 
                     <div className={`${THEME.panel} space-y-4`}>
-                        <h2 className="text-base font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Target" className="text-amber-500" size={14}/> <span>Конструктор вектора</span></h2>
+                        <h2 className="text-base font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Target" className="text-amber-500" size={14}/> <span>Главная задача</span></h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Название фокуса</label>
                                 <input type="text" disabled={wBlock} value={state.mainGoal.title} onChange={e => update('mainGoal', { title: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white font-bold focus:outline-none focus:border-amber-500/50" />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Описание смысла</label>
+                                <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Описание задачи</label>
                                 <input type="text" disabled={wBlock} value={state.mainGoal.description} onChange={e => update('mainGoal', { description: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white font-bold focus:outline-none focus:border-amber-500/50" />
                             </div>
                         </div>
                         <div className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-[#262626] rounded-xl flex-wrap gap-3">
                             <label className="flex items-center gap-2 text-xs font-bold uppercase text-neutral-300 cursor-pointer">
                                 <input type="checkbox" disabled={wBlock} checked={state.mainGoal.active} onChange={e => update('mainGoal', { active: e.target.checked })} className="w-4 h-4 accent-amber-500" />
-                                <span>Активировать таймер на Dashboard (11:45)</span>
+                                <span>Активировать таймер на Сегодня (11:45)</span>
                             </label>
                             <div className="w-full sm:w-48">
                                 <NumericInput label="Лимит таймера (мин)" readOnly={wBlock} min={15} max={60} step={5} value={state.mainGoal.timeLimitMinutes} onChange={v => update('mainGoal', { timeLimitMinutes: v })} />
@@ -2220,7 +2259,7 @@
                                 <input type="text" disabled={wBlock} value={state.personalConfig.homeArrivalTime} onChange={e => update('personalConfig', { homeArrivalTime: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-2.5 text-xs text-center font-mono text-white" />
                             </div>
                             <div>
-                                <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Вечернее кардио</label>
+                                <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Кардио</label>
                                 <input type="text" disabled={wBlock} value={state.personalConfig.cardioTime} onChange={e => update('personalConfig', { cardioTime: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-2.5 text-xs text-center font-mono text-white" />
                             </div>
                             <div>
@@ -2237,7 +2276,35 @@
                                 <span>Дыхание в гостевом слое</span>
                                 <input type="checkbox" disabled={wBlock} checked={state.personalConfig.showGuestBreathing} onChange={e => update('personalConfig', { showGuestBreathing: e.target.checked })} className="w-4 h-4 accent-amber-500" />
                             </label>
-                            <div className="sm:col-span-3">
+                            <label className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-[#262626] rounded-xl min-h-[44px]">
+                                <span>Показывать тизер гостям</span>
+                                <input type="checkbox" disabled={wBlock} checked={state.personalConfig.showGuestTeaser} onChange={e => update('personalConfig', { showGuestTeaser: e.target.checked })} className="w-4 h-4 accent-amber-500" />
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className={`${THEME.panel} space-y-4`}>
+                        <h2 className="text-base font-bold text-white flex items-center gap-2 mb-1 uppercase"><IconBase iconName="Smartphone" className="text-amber-500" size={14}/> <span>Управление публичной витриной (CTA)</span></h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Текст кнопки для гостей</label>
+                                <input type="text" disabled={wBlock} value={state.personalConfig.guestCtaText || ''} onChange={e => update('personalConfig', { guestCtaText: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none" />
+                            </div>
+                            <div>
+                                <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Подпись под кнопкой</label>
+                                <input type="text" disabled={wBlock} value={state.personalConfig.guestCtaSubtext || ''} onChange={e => update('personalConfig', { guestCtaSubtext: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none" />
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Telegram-ссылка</label>
+                                <input type="text" disabled={wBlock} value={state.personalConfig.telegramCtaUrl || ''} onChange={e => update('personalConfig', { telegramCtaUrl: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none font-mono" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs font-bold uppercase text-neutral-300">
+                            <label className="flex items-center justify-between p-3 bg-[#0a0a0a] border border-[#262626] rounded-xl min-h-[44px]">
+                                <span>Показывать CTA гостям</span>
+                                <input type="checkbox" disabled={wBlock} checked={state.personalConfig.showGuestCta ?? true} onChange={e => update('personalConfig', { showGuestCta: e.target.checked })} className="w-4 h-4 accent-amber-500" />
+                            </label>
+                            <div className="sm:col-span-2">
                                 <label className="text-[11px] font-bold text-neutral-400 block mb-1 uppercase">Публичное гостевое сообщение</label>
                                 <input type="text" disabled={wBlock} value={state.personalConfig.guestMessage} onChange={e => update('personalConfig', { guestMessage: e.target.value })} className="w-full bg-[#0a0a0a] border border-[#262626] rounded-xl p-3 text-sm text-white focus:outline-none" />
                             </div>
@@ -2362,26 +2429,18 @@
                 }));
             };
 
-            const handleCtaClick = () => {
-                showToast("Идея проста: один HTML-файл, личная система, приватный доступ.");
+            const openGuestCta = () => {
+                window.open(getSafeTelegramUrl(state), '_blank', 'noopener,noreferrer');
             };
-
-            const cards = [
-                { title: 'Распорядок дня', text: 'Структура видна, детали под замком. Тут живёт персональный план владельца.', icon: 'Clock' },
-                { title: 'Задачи и фокус', text: 'Главные действия, таймеры и прогресс скрыты. Без PIN — только витрина.', icon: 'Target' },
-                { title: 'История прогресса', text: 'Что сделано, когда сделано и как часто — доступно только владельцу.', icon: 'History' },
-                { title: 'Личные трекеры', text: 'Данные, цифры и привычки не показываются гостям. Конфиденциальность включена.', icon: 'Dumbbell' },
-                { title: 'Настройки системы', text: 'Владелец может менять сайт без кода. Гости могут только завидовать.', icon: 'Settings' },
-                { title: 'Экспорт и backup', text: 'Данные можно сохранить и перенести. Но не в гостевом режиме.', icon: 'Download' }
-            ];
 
             return (
                 <div className="min-h-screen bg-[#0a0a0a] text-neutral-100 p-4 md:p-8 pb-24 antialiased flex flex-col justify-between">
                     <div className="max-w-[760px] mx-auto w-full space-y-6 pt-4">
                         <div className="text-center space-y-2 border-b border-[#262626]/40 pb-5">
-                            <h1 className="text-3xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle || "Markov OS"}<span className="text-amber-500">OS</span></h1>
-                            <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest bg-neutral-900 inline-block px-3 py-1 rounded-full border border-[#222]">Гостевая демонстрационная сессия</p>
+                            <h1 className="text-3xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle || "Markov OS"}</h1>
+                            <p className="text-xs font-bold text-neutral-400 uppercase tracking-widest bg-neutral-900 inline-block px-3 py-1 rounded-full border border-[#222]">Гостевой режим</p>
                             <p className="text-sm text-neutral-400 max-w-md mx-auto pt-2 leading-relaxed font-medium">{state.personalConfig.guestMessage}</p>
+                            <p className="text-xs italic text-neutral-500 pt-1">Это приватная панель владельца. Гостям доступна только витрина, дыхание и закрытые модули. Да, тут что-то есть. Нет, тебе всё не покажут.</p>
                             
                             <div className="flex justify-center gap-3 pt-4">
                                 <button type="button" onClick={lockSite} className="px-4 py-2 bg-amber-500 text-neutral-950 font-bold text-xs uppercase rounded-xl">Войти по PIN</button>
@@ -2409,8 +2468,8 @@
                         <div className="space-y-2">
                             <h3 className="text-xs font-bold uppercase text-neutral-500 tracking-widest px-1">Закрытые системные разделы</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {cards.map((c, i) => (
-                                    <LockedGuestCard key={i} title={c.title} text={c.text} iconName={c.icon} />
+                                {GUEST_LOCKED_MODULES.map((c, i) => (
+                                    <LockedGuestCard key={i} title={c.title} text={c.text} iconName={c.title === 'Личные трекеры' ? 'Dumbbell' : c.title === 'История прогресса' ? 'History' : c.title === 'Задачи и фокус' ? 'Target' : c.title === 'Настройки системы' ? 'Settings' : c.title === 'Backup и экспорт' ? 'Download' : 'Clock'} />
                                 ))}
                             </div>
                         </div>
@@ -2426,11 +2485,15 @@
                                     <span className="bg-neutral-900 border border-neutral-800 px-2 py-1 rounded"># Свой доступ</span>
                                     <span className="bg-neutral-900 border border-neutral-800 px-2 py-1 rounded"># Один HTML-файл</span>
                                 </div>
-                                <div className="pt-2">
-                                    <button type="button" onClick={handleCtaClick} className="px-4 py-2 bg-[#1c1c1c] border border-amber-500/20 text-amber-400 font-bold text-xs uppercase rounded-xl hover:bg-[#222]">
-                                        {state.personalConfig.guestCtaText || 'Хочу такой же сайт'}
-                                    </button>
-                                </div>
+                                
+                                {state.personalConfig.showGuestCta && (
+                                    <div className="pt-2">
+                                        <button type="button" onClick={openGuestCta} className="px-4 py-2 bg-[#1c1c1c] border border-amber-500/20 text-amber-400 font-bold text-xs uppercase rounded-xl hover:bg-[#222]">
+                                            {state.personalConfig.guestCtaText || 'Хочу такой же сайт'}
+                                        </button>
+                                        <p className="text-[9px] text-neutral-500 mt-1">{state.personalConfig.guestCtaSubtext || 'Откроется Telegram.'}</p>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -2474,12 +2537,12 @@
             const saveDailyNote = useCallback((text, source) => {
                 const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
                 update('notes', { savedDaily: [...(state.notes.savedDaily || []), `[${time}] [${source}] ${text}`] }, { silent: true });
-                showToast("Пункт интегрирован в суточный markdown-отчет.");
+                showToast("Пункт добавлен в суточный отчет.");
             }, [state.notes.savedDaily, update, showToast]);
 
             const addLanguagePhrase = useCallback((p) => {
                 update('languagePhrases', [...(state.languagePhrases || []), p], { silent: true });
-                showToast("Структура сохранена.");
+                showToast("Фраза сохранена.");
             }, [state.languagePhrases, update, showToast]);
 
             const setTab = useCallback((tabId) => {
@@ -2507,8 +2570,8 @@
                 <div className="min-h-screen bg-[#0a0a0a] text-neutral-200 flex flex-col lg:flex-row overflow-x-hidden antialiased relative w-full">
                     <aside className={`hidden lg:flex flex-col w-[270px] bg-[#0c0c0c] border-r border-[#262626]/40 p-5 h-screen sticky top-0 z-30 transition-all duration-300 ${state.deepFocusActive ? 'opacity-0 -translate-x-[270px] pointer-events-none' : 'opacity-100'}`}>
                         <div className="mb-4">
-                            <h1 className="text-2xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle || 'Markov OS'}<span className="text-amber-500">OS</span></h1>
-                            <p className="text-[9px] text-neutral-400 font-bold tracking-widest uppercase flex items-center gap-1">Elite v16 Final <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span></p>
+                            <h1 className="text-2xl font-black tracking-wider text-white uppercase">{state.personalConfig.publicTitle || 'Markov OS'}</h1>
+                            <p className="text-[9px] text-neutral-400 font-bold tracking-widest uppercase flex items-center gap-1">Elite v17 Final <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span></p>
                         </div>
 
                         <div className="w-full text-left mb-4 p-3 rounded-xl bg-[#141414] border border-[#262626]">
@@ -2517,7 +2580,7 @@
                         </div>
 
                         <div className="mb-4 p-2.5 rounded-xl bg-[#141414] border border-[#262626] flex items-center justify-between text-[10px] font-bold uppercase text-neutral-400">
-                            <span>Контур времени:</span>
+                            <span>Время:</span>
                             <span className="font-mono bg-neutral-800 text-amber-400 px-1.5 py-0.5 rounded font-black">{computedCircadianPhase}</span>
                         </div>
 
